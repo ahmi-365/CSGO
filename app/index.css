@@ -1,0 +1,29 @@
+@import "tailwindcss";
+@custom-variant hover (&:hover);
+
+@theme {
+    --color-primary: #702AEC;
+    --breakpoint-xs: 390px;
+    --breakpoint-sm: 414px;
+    --breakpoint-md: 768px;
+    --breakpoint-lg: 992px;
+    --breakpoint-xl: 1240px;
+    --breakpoint-2xl: 1400px;
+    --breakpoint-3xl: 1580px;
+    --font-satoshi: 'Satoshi', sans-serif;
+    --font-inter: var(--font-inter);
+}
+
+
+@layer base {
+    .btn {
+        @apply min-w-27 inline-flex items-center justify-center gap-2 rounded-full text-sm !leading-normal px-4 min-h-10 hover:opacity-80 border border-solid border-white/20 text-white font-bold;
+    }
+
+    .gradient-border-two {
+        border: double 1px transparent;
+        background-image: linear-gradient(var(--bg-color, #171925), var(--bg-color, #171925)), linear-gradient(136deg, var(--gradient, #FCC811) 16.1%, var(--gradient, #F85D36) 41.78%, var(--gradient, #EF5180) 56.03%, var(--gradient, #4B71FF) 82.24%, var(--gradient, #34DDFF) 95.02%);
+        background-origin: border-box;
+        background-clip: content-box, border-box;
+    }
+}

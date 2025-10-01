@@ -1,0 +1,201 @@
+import React from 'react'
+import { JSX } from 'react';
+import { logo, favicon } from '@/app/utilities/Icons'
+import Link from 'next/link';
+
+type Props = {}
+
+type FooterItem = {
+  title: string;
+  links:
+  {
+    name: string;
+    icon?: JSX.Element;
+  }[]
+}
+
+export default function Footer({ }: Props) {
+  const items: FooterItem[] = [
+    {
+      title: 'Links to',
+      links: [
+        {
+          name: '5 minutes draws',
+        },
+        {
+          name: 'Daily draws',
+        },
+        {
+          name: 'Weeky draws',
+        },
+        {
+          name: 'Special Draws',
+        },
+        {
+          name: 'Instant Scratch card',
+        },
+        {
+          name: 'Spin page',
+        },
+      ]
+    },
+    {
+      title: 'About us',
+      links: [
+        {
+          name: 'News',
+        },
+        {
+          name: 'Partnership',
+        },
+        {
+          name: 'Weeky draws',
+        },
+        {
+          name: 'Business Contacts',
+        },
+      ]
+    },
+    {
+      title: 'Support & Legal info',
+      links: [
+        {
+          name: 'Help center',
+        },
+        {
+          name: 'FAQ',
+        },
+        {
+          name: 'Fairness',
+        },
+        {
+          name: 'Live Support',
+        },
+        {
+          name: 'Fairness',
+        },
+        {
+          name: 'Gamble aware',
+        },
+        {
+          name: 'Privacy Policy',
+        },
+        {
+          name: 'Terms of use',
+        },
+        {
+          name: 'AML Policy',
+        },
+      ]
+    },
+    {
+      title: 'Join us social media',
+      links: [
+        {
+          icon: (<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <g clipPath="url(#clip0_289_1656)">
+              <path d="M12.0015 0.599609C-2.13261 1.01361 -3.57405 20.8467 10.2111 23.3996H12.0015H13.7919C27.5801 20.8443 26.1324 1.01217 12.0015 0.599609Z" fill="#1877F2" />
+              <path d="M13.7911 15.385H16.4611L16.9692 12.0697H13.7911V9.91806C13.7911 9.0111 14.2351 8.12694 15.6585 8.12694H17.1036V5.3043C14.009 4.74678 10.2912 4.91646 10.2103 9.5427V12.0697H7.30078V15.385H10.2103V23.4001H12.0007H13.7911V15.385Z" fill="#F1F1F1" />
+            </g>
+            <defs>
+              <clipPath id="clip0_289_1656">
+                <rect width="24" height="24" fill="white" />
+              </clipPath>
+            </defs>
+          </svg>
+          ),
+          name: 'Facebook',
+        },
+        {
+          icon: (<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <g clipPath="url(#clip0_289_1663)">
+              <path d="M24 12C24 5.37258 18.6274 0 12 0C5.37258 0 0 5.37258 0 12C0 18.6274 5.37258 24 12 24C18.6274 24 24 18.6274 24 12Z" fill="url(#paint0_linear_289_1663)" />
+              <path opacity="0.1" d="M21.0316 4.10526C19.2821 7.31684 16.8079 10.6295 13.7163 13.721C10.6247 16.8126 7.31209 19.2821 4.10525 21.0316C3.9042 20.8568 3.70894 20.6747 3.51946 20.4853C2.37418 19.3782 1.46076 18.0542 0.832466 16.5905C0.204169 15.1268 -0.126434 13.5527 -0.140064 11.9599C-0.153693 10.3671 0.149922 8.78748 0.75308 7.31323C1.35624 5.83898 2.24687 4.49956 3.37303 3.37308C4.4992 2.2466 5.83837 1.3556 7.31245 0.752029C8.78653 0.14846 10.366 -0.155596 11.9588 -0.142411C13.5516 -0.129226 15.1259 0.200937 16.5898 0.828826C18.0537 1.45671 19.3779 2.36976 20.4853 3.51473C20.6747 3.70421 20.8568 3.90105 21.0316 4.10526Z" fill="white" />
+              <path d="M14.8416 5.68433H9.1574C8.23612 5.68433 7.35258 6.0503 6.70113 6.70174C6.04969 7.35319 5.68372 8.23673 5.68372 9.15801V14.8422C5.68372 15.7635 6.04969 16.647 6.70113 17.2985C7.35258 17.9499 8.23612 18.3159 9.1574 18.3159H14.8416C15.7629 18.3159 16.6464 17.9499 17.2979 17.2985C17.9493 16.647 18.3153 15.7635 18.3153 14.8422V9.15801C18.3153 8.23673 17.9493 7.35319 17.2979 6.70174C16.6464 6.0503 15.7629 5.68433 14.8416 5.68433ZM17.21 14.3433C17.21 15.1037 16.9079 15.8331 16.3702 16.3708C15.8325 16.9085 15.1031 17.2106 14.3427 17.2106H9.65635C8.89587 17.2106 8.16655 16.9085 7.62881 16.3708C7.09108 15.8331 6.78898 15.1037 6.78898 14.3433V9.65696C6.78898 8.89648 7.09108 8.16716 7.62881 7.62942C8.16655 7.09169 8.89587 6.78959 9.65635 6.78959H14.3427C15.1031 6.78959 15.8325 7.09169 16.3702 7.62942C16.9079 8.16716 17.21 8.89648 17.21 9.65696V14.3433Z" fill="white" />
+              <path d="M14.303 9.71977L14.273 9.68977L14.2478 9.66451C13.6508 9.06957 12.8422 8.73569 11.9994 8.73608C11.5737 8.73898 11.1529 8.8257 10.7608 8.9913C10.3687 9.15691 10.0131 9.39814 9.71422 9.70122C9.41539 10.0043 9.1792 10.3633 9.01915 10.7577C8.85911 11.1521 8.77834 11.5742 8.78146 11.9998C8.78082 12.8635 9.1213 13.6926 9.72883 14.3066C10.0264 14.6078 10.381 14.8467 10.7719 15.0094C11.1629 15.172 11.5823 15.2552 12.0057 15.254C12.6408 15.2407 13.2583 15.0428 13.7829 14.6846C14.3075 14.3263 14.7165 13.8232 14.9601 13.2365C15.2036 12.6498 15.2712 12.0049 15.1545 11.3804C15.0379 10.756 14.742 10.179 14.303 9.71977ZM11.9994 14.1408C11.5747 14.1468 11.1578 14.0263 10.8018 13.7947C10.4458 13.563 10.1667 13.2308 10 12.8401C9.83336 12.4494 9.78666 12.018 9.86585 11.6008C9.94504 11.1835 10.1466 10.7992 10.4448 10.4967C10.743 10.1943 11.1244 9.98739 11.5405 9.90232C11.9566 9.81724 12.3886 9.85785 12.7816 10.019C13.1746 10.1801 13.5108 10.4545 13.7474 10.8072C13.984 11.1599 14.1104 11.575 14.1104 11.9998C14.1125 12.279 14.0595 12.5559 13.9545 12.8146C13.8496 13.0734 13.6946 13.3089 13.4986 13.5078C13.3025 13.7066 13.0692 13.8648 12.8119 13.9735C12.5547 14.0821 12.2786 14.139 11.9994 14.1408Z" fill="white" />
+              <path d="M16.1745 8.58692C16.1753 8.68824 16.1561 8.78873 16.1181 8.88263C16.08 8.97654 16.0238 9.06202 15.9527 9.13417C15.8816 9.20633 15.7969 9.26375 15.7035 9.30315C15.6102 9.34254 15.51 9.36314 15.4087 9.36376C15.3082 9.36371 15.2087 9.34373 15.116 9.30497C15.0234 9.26622 14.9393 9.20945 14.8687 9.13797C14.7617 9.02944 14.6889 8.8919 14.6594 8.7424C14.6299 8.59291 14.6449 8.43803 14.7025 8.29698C14.7602 8.15593 14.858 8.0349 14.9838 7.94891C15.1096 7.86292 15.2579 7.81574 15.4102 7.81323C15.5886 7.8132 15.7613 7.87579 15.8981 7.99007L15.9139 8.00586C15.9394 8.02659 15.9627 8.04987 15.9834 8.07534L16.0008 8.09428C16.1138 8.23352 16.1752 8.40758 16.1745 8.58692Z" fill="white" />
+            </g>
+            <defs>
+              <linearGradient id="paint0_linear_289_1663" x1="3.51474" y1="3.51474" x2="20.4853" y2="20.4853" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#FAE100" />
+                <stop offset="0.15" stopColor="#FCB720" />
+                <stop offset="0.3" stopColor="#FF7950" />
+                <stop offset="0.5" stopColor="#FF1C74" />
+                <stop offset="1" stopColor="#6C1CD1" />
+              </linearGradient>
+              <clipPath id="clip0_289_1663">
+                <rect width="24" height="24" fill="white" />
+              </clipPath>
+            </defs>
+          </svg>
+          ),
+          name: 'Instagram',
+        },
+        {
+          icon: (<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <g clipPath="url(#clip0_289_1676)">
+              <path d="M12 24C18.6274 24 24 18.6274 24 12C24 5.37258 18.6274 0 12 0C5.37258 0 0 5.37258 0 12C0 18.6274 5.37258 24 12 24Z" fill="url(#paint0_linear_289_1676)" />
+              <path fillRule="evenodd" clipRule="evenodd" d="M5.43105 11.873C8.92928 10.3488 11.262 9.34401 12.4292 8.85858C15.7617 7.47248 16.4542 7.23168 16.9055 7.22372C17.0048 7.22198 17.2267 7.24659 17.3705 7.36326C17.5838 7.53633 17.585 7.91198 17.5613 8.16061C17.3807 10.0581 16.5993 14.6628 16.2018 16.788C16.0335 17.6872 15.7023 17.9888 15.3817 18.0183C14.6848 18.0824 14.1557 17.5577 13.4807 17.1153C12.4246 16.423 11.8279 15.992 10.8027 15.3165C9.61793 14.5357 10.386 14.1066 11.0612 13.4053C11.2379 13.2218 14.3082 10.429 14.3677 10.1757C14.3751 10.144 14.382 10.0259 14.3118 9.96351C14.2417 9.90117 14.1381 9.92245 14.0634 9.93942C13.9575 9.96347 12.2703 11.0787 9.00175 13.285C8.52283 13.6139 8.08905 13.7741 7.70041 13.7657C7.27193 13.7565 6.44777 13.5234 5.83507 13.3243C5.08357 13.08 4.48628 12.9508 4.53832 12.536C4.56541 12.3198 4.86297 12.0989 5.43105 11.873Z" fill="white" />
+            </g>
+            <defs>
+              <linearGradient id="paint0_linear_289_1676" x1="12" y1="0" x2="12" y2="23.8125" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#2AABEE" />
+                <stop offset="1" stopColor="#229ED9" />
+              </linearGradient>
+              <clipPath id="clip0_289_1676">
+                <rect width="24" height="24" fill="white" />
+              </clipPath>
+            </defs>
+          </svg>
+          ),
+          name: 'Telegram',
+        },
+        {
+          icon: (<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <g clipPath="url(#clip0_289_1682)">
+              <path d="M12 0C5.37281 0 0 5.37281 0 12C0 18.6272 5.37281 24 12 24C18.6272 24 24 18.6272 24 12C24 5.37281 18.6272 0 12 0Z" fill="black" />
+              <path d="M13.3139 10.9138L18.451 4.94238H17.2337L12.7732 10.1273L9.21059 4.94238H5.10156L10.4889 12.7829L5.10156 19.0448H6.31895L11.0294 13.5694L14.7917 19.0448H18.9007L13.3136 10.9138H13.3139ZM6.75758 5.85882H8.62741L17.2342 18.17H15.3644L6.75758 5.85882Z" fill="white" />
+            </g>
+            <defs>
+              <clipPath id="clip0_289_1682">
+                <rect width="24" height="24" fill="white" />
+              </clipPath>
+            </defs>
+          </svg>
+          ),
+          name: 'Twitter',
+        },
+      ]
+    },
+  ]
+  return (
+    <div className="bg-[#171925]/16 w-full">
+      <div className='pt-10 mb:pt-12 pb-9 max-w-325 mx-auto '>
+        <div className='flex flex-wrap md:flex-nowrap justify-between gap-5 md:gap-8 lg:gap-14 xl:gap-25 w-full px-5'>
+          {items.map((item, index) => (
+            <div className='flex flex-col items-start gap-3 md:gap-4' key={index}>
+              <h6 className='text-base text-white font-satoshi font-semibold !leading-[130%]'>{item.title}</h6>
+              <div className={`flex flex-col  ${index === 3 ? 'gap-4' : 'gap-2 md:gap-3'}`}>
+                {item.links.map((item, index) => (
+                  <a href="" className='text-base text-white/60 flex items-center hover:text-white hover:translate-x-1 font-satoshi font-normal !leading-normal' key={index}>
+                    {item.icon && <span className='inline-block mr-2'>{item.icon}</span>}
+                    {item.name}
+                  </a>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="border-t border-solid border-white/6 py-4">
+        <div className="flex items-center justify-center gap-2 xl:gap-8">
+          <Link href={'/'} className='block'>
+            <span className='hidden md:block'>{logo}</span>
+            <span className='block md:hidden'>{favicon}</span>
+          </Link>
+          <p className='text-sm text-white/40 font-satoshi font-normal !leading-normal'>Copyright &copy; 2024-2025,  All Rights Reserved.</p>
+        </div>
+      </div>
+    </div>
+  )
+}

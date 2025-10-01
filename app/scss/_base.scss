@@ -1,0 +1,105 @@
+@layer base {
+    body {
+        font-size: 14px;
+        font-weight: 500;
+        line-height: calc(26px/16px);
+        font-family: $font-1;
+        overflow-x: hidden;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+        color: $white;
+        font-weight: 700;
+    }
+
+    img {
+        max-width: 100%;
+    }
+
+    a {
+        text-decoration: none;
+        @include transition;
+    }
+
+    input,
+    textarea,
+    button {
+        outline: none;
+        @include transition;
+    }
+
+    button {
+        cursor: pointer;
+    }
+
+    input::-webkit-outer-spin-button,
+    input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    input[type=number] {
+        -moz-appearance: textfield;
+        appearance: textfield;
+    }
+
+    .primary-bg {
+        position: relative;
+        z-index: 1;
+        background: var(--Final-Primary, linear-gradient(136deg, #FCC811 16.1%, #F85D36 41.78%, #EF5180 56.03%, #4B71FF 82.24%, #34DDFF 95.02%));
+        overflow: hidden;
+
+        &::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 100%;
+            margin-left: 24px;
+            border-radius: 100%;
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(88deg, rgba(255, 185, 35, 0.70) 1.49%, rgba(255, 127, 22, 0.70) 68.43%);
+            z-index: -10;
+        }
+    }
+
+    .btn {
+        &.gradient-border {
+            border: double 1px transparent;
+            background-image: linear-gradient(#171925, #171925), linear-gradient(136deg, #FCC811 16.1%, #F85D36 41.78%, #EF5180 56.03%, #4B71FF 82.24%, #34DDFF 95.02%);
+            background-origin: border-box;
+            background-clip: content-box, border-box;
+            padding: 1px !important;
+            box-shadow: 0 0 8px 0 rgba(255, 255, 255, 0.12), 0 0 16px 0 rgba(189, 36, 255, 0.50), 0 -4px 4px 0 rgba(117, 1, 211, 0.50) inset, 0 4px 4px 0 rgba(203, 79, 255, 0.50) inset;
+        }
+
+        &:not(.gradient-border) {
+            border: double 1px transparent;
+            background-image: linear-gradient(160deg, #FCC811 16.1%, #F85D36 41.78%, #EF5180 56.03%, #4B71FF 90%, #34DDFF 95.02%), linear-gradient(163deg, #E9A39E 27%, #E575BD 61%, #8953ED 83%, #806df0 100%);
+            box-shadow: 0 0 8px 0 rgba(255, 255, 255, 0.12), 0 0 16px 0 rgba(189, 36, 255, 0.50), 0 -4px 4px 0 rgba(117, 1, 211, 0.50) inset, 0 4px 4px 0 rgba(203, 79, 255, 0.50) inset;
+            background-origin: border-box;
+            background-clip: content-box, border-box;
+            padding: 0px !important;
+        }
+    }
+
+
+}
+
+@layer components {
+
+    .overflow-x-auto,
+    .overflow-y-auto {
+        @include custom-scroll(var(--scroll, 6px));
+    }
+
+    #root {
+        overflow: hidden;
+    }
+
+}
