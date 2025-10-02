@@ -1,27 +1,77 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import Input from "@/app/components/ui/Input";
+import Input from "@/app/components/ui/Input"; // Assuming this path is correct
 import { FaTimes } from "react-icons/fa";
+import { loginUser, registerUser } from "../../service/api";
 
 interface BtnItem {
-  name?: string;
+  name: "in" | "up";
 }
 
 type Props = {};
+
+// Initial form states
+const initialLoginState = {
+  email: "",
+  password: "",
+  code: "",
+};
+
+const initialRegisterState = {
+  username: "",
+  email: "",
+  password: "",
+  passwordConfirmation: "",
+  code: "",
+};
 
 export default function ActionBtn({}: Props) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+  
+  // UI and Auth States
   const [loginModal, setLoginModal] = useState(false);
   const btns: BtnItem[] = [{ name: "in" }, { name: "up" }];
-  const [activeTab, setActiveTab] = useState(btns[0]);
+  const [activeTab, setActiveTab] = useState<BtnItem>(btns[0]);
 
+  // Form States
+  const [loginForm, setLoginForm] = useState(initialLoginState);
+  const [registerForm, setRegisterForm] = useState(initialRegisterState);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // --- Form Handlers ---
+
+  const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setLoginForm({ ...loginForm, [name]: value });
+    setError(null);
+  };
+
+  const handleRegisterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setRegisterForm({ ...registerForm, [name]: value });
+    setError(null);
+  };
+
+  const closeModal = useCallback(() => {
+    setLoginModal(false);
+    setIsLoading(false);
+    setError(null);
+    setLoginForm(initialLoginState);
+    setRegisterForm(initialRegisterState);
+    
+    // Clear the 'auth' parameter from the URL
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("auth");
+    router.push(`${pathname}?${params.toString()}`);
+  }, [searchParams, pathname, router]);
+
+  // Set URL params and open modal
   const setParams = (e: BtnItem) => {
-    if (!e.name) return;
-
     const params = new URLSearchParams(searchParams.toString());
     const createRoute = e.name.toLowerCase().trim();
     params.set("auth", createRoute);
@@ -29,67 +79,163 @@ export default function ActionBtn({}: Props) {
 
     router.push(`${pathname}?${params.toString()}`);
     setActiveTab(e);
-    setLoginModal((prev) => !prev);
+    setLoginModal(true);
   };
 
+  // --- Auth Logic ---
+
+  const handleSuccessfulAuth = async () => {
+    // 1. Set 'auth' cookie to persist login state
+    if (typeof window !== "undefined") {
+        if ("cookieStore" in window) {
+            await (window as any).cookieStore.set({
+                name: "auth",
+                value: "true",
+                path: "/",
+                expires: Date.now() + 1000 * 60 * 60 * 24 * 30, // 30 days
+            });
+        } else {
+            document.cookie = "auth=true; path=/; max-age=" + 3600 * 24 * 30;
+        }
+    }
+    closeModal();
+  };
+
+  // 🔑 Login Handler
+  const siteLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+
+    // Validate required fields
+    if (!loginForm.email.trim()) {
+      setError("Email is required.");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!loginForm.password) {
+      setError("Password is required.");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      await loginUser(
+        loginForm.email.trim(), 
+        loginForm.password, 
+        loginForm.code.trim() || undefined // Pass code only if it has a value
+      );
+      await handleSuccessfulAuth();
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Login failed. Please check your credentials.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 📝 Register Handler
+  const siteRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+
+    // Validate required fields
+    if (!registerForm.username.trim()) {
+        setError("Username is required.");
+        setIsLoading(false);
+        return;
+    }
+
+    if (!registerForm.email.trim()) {
+        setError("Email is required.");
+        setIsLoading(false);
+        return;
+    }
+
+    if (!registerForm.password) {
+        setError("Password is required.");
+        setIsLoading(false);
+        return;
+    }
+
+    if (registerForm.password !== registerForm.passwordConfirmation) {
+        setError("Passwords do not match.");
+        setIsLoading(false);
+        return;
+    }
+
+    try {
+      await registerUser(
+        registerForm.username.trim(),
+        registerForm.email.trim(),
+        registerForm.password,
+        registerForm.passwordConfirmation,
+        registerForm.code.trim() || undefined // Pass code only if it has a value
+      );
+      await handleSuccessfulAuth();
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Registration failed. Try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Effect to manage modal and URL state on load/change
   useEffect(() => {
     const currentAuth = searchParams.get("auth") || "";
+    
+    // Find the correct button/tab or default to 'in'
     const found =
       btns.find(
-        (item) => item.name?.toLowerCase() === currentAuth.toLowerCase()
+        (item) => item.name.toLowerCase() === currentAuth.toLowerCase()
       ) || btns[0];
+    
     setActiveTab(found);
+    const shouldShowModal = !!currentAuth;
+    setLoginModal(shouldShowModal);
 
-    if (loginModal) {
+    // Body overflow control for modal
+    if (shouldShowModal) {
       document.body.classList.add("overflow-hidden");
     } else {
       document.body.classList.remove("overflow-hidden");
     }
+
     return () => {
       document.body.classList.remove("overflow-hidden");
     };
-  }, [searchParams, loginModal]);
-
-  const siteLogin = async () => {
-    setLoginModal(false);
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete("auth");
-    router.push(`${pathname}?${params.toString()}`);
-
-    if ("cookieStore" in window) {
-      await window.cookieStore.set({
-        name: "auth",
-        value: "true",
-        path: "/",
-        expires: Date.now() + 3600 * 24000,
-      });
-    } else {
-      document.cookie = "auth=true; path=/; max-age=3600";
-    }
-  };
+  }, [searchParams]);
 
   return (
     <>
+      {/* Sign In/Up Buttons on the main page */}
       <div className="flex items-center gap-2 ml-auto lg:ml-0">
         {btns.map((item, index) => (
           <button
             onClick={() => setParams(item)}
-            className={`btn ${index == 0 ? "gradient-border" : ""}`}
-            key={index}
+            className={`btn ${item.name === "in" ? "gradient-border" : ""}`}
+            key={item.name}
+            disabled={isLoading}
           >
             <span className="-translate-y-px capitalize">
-              {" "}
               Sign {item.name}
             </span>
           </button>
         ))}
       </div>
+
+      {/* Login/Signup Modal */}
       {loginModal && (
-        <div className="fixed size-full inset-0 bg-[#171925]/60 px-3 py-6 flex items-center justify-center">
+        <div className="fixed size-full inset-0 bg-[#171925]/60 px-3 py-6 flex items-center justify-center z-50">
           <div className="w-full max-w-185 mx-auto bg-[#D7DEFF]/15 border border-solid border-[#D7DEFF]/10 backdrop-blur-[20px] flex flex-col-reverse md:flex-row flex-wrap rounded-2xl overflow-hidden">
+            
+            {/* Form Section */}
             <div className="w-full md:w-1/2 py-9 px-6">
               <div className="flex items-center border-b border-solid border-white/12 mb-5">
-                {btns.map((item, index) => (
+                {btns.map((item) => (
                   <button
                     onClick={() => setActiveTab(item)}
                     className={`block border-b-2 border-solid p-4 pt-0 font-inter font-semibold -mb-px ${
@@ -97,94 +243,137 @@ export default function ActionBtn({}: Props) {
                         ? "text-white border-white"
                         : "text-white/50 border-transparent"
                     }`}
-                    key={index}
+                    key={item.name}
                   >
                     Sign {item.name}
                   </button>
                 ))}
               </div>
+
+              {/* Error Display */}
+              {error && (
+                <div className="bg-red-500/20 text-red-300 p-3 rounded mb-4 text-center text-sm">
+                  {error}
+                </div>
+              )}
+
+              {/* Sign In Form */}
               {activeTab.name === "in" && (
-                <div className="flex flex-col gap-y-4">
+                <form onSubmit={siteLogin} className="flex flex-col gap-y-4">
                   <Input
-                    className="mb-0"
-                    type="text"
+                    name="email"
+                    type="email"
                     label="Email"
+                    value={loginForm.email}
+                    onChange={handleLoginChange}
                     labelClass="font-inter text-xs uppercase !text-white"
                     inputClass="font-inter !text-sm !rounded-full min-h-12 !px-5 placeholder:text-white/60 text-white"
                     placeholder="Enter your email address..."
                     required
                   />
                   <Input
-                    className="mb-0"
+                    name="password"
                     type="password"
                     label="Password"
+                    value={loginForm.password}
+                    onChange={handleLoginChange}
                     labelClass="font-inter text-xs uppercase !text-white"
                     inputClass="font-inter !text-sm !rounded-full min-h-12 !px-5 placeholder:text-white/60 text-white"
                     placeholder="Enter your password..."
                     required
                   />
                   <Input
-                    className="mb-0"
+                    name="code"
                     type="text"
-                    label="Code"
+                    label="Code (Optional)"
+                    value={loginForm.code}
+                    onChange={handleLoginChange}
                     labelClass="font-inter text-xs uppercase !text-white"
                     inputClass="font-inter !text-sm !rounded-full min-h-12 !px-5 placeholder:text-white/60 text-white"
-                    placeholder="Enter code..."
-                    required
+                    placeholder="Enter code (optional)..."
                   />
                   <button
-                    onClick={() => siteLogin()}
+                    type="submit"
                     className="btn font-inter font-bold"
+                    disabled={isLoading}
                   >
-                    Login
+                    {isLoading ? "Logging In..." : "Login"}
                   </button>
-                </div>
+                </form>
               )}
+
+              {/* Sign Up Form */}
               {activeTab.name === "up" && (
-                <div className="flex flex-col gap-y-4">
+                <form onSubmit={siteRegister} className="flex flex-col gap-y-4">
                   <Input
-                    className="mb-0"
+                    name="username"
                     type="text"
                     label="Username"
+                    value={registerForm.username}
+                    onChange={handleRegisterChange}
                     labelClass="font-inter text-xs uppercase !text-white"
                     inputClass="font-inter !text-sm !rounded-full min-h-12 !px-5 placeholder:text-white/60 text-white"
                     placeholder="Enter your username..."
                     required
                   />
                   <Input
-                    className="mb-0"
-                    type="text"
+                    name="email"
+                    type="email"
                     label="Email"
+                    value={registerForm.email}
+                    onChange={handleRegisterChange}
                     labelClass="font-inter text-xs uppercase !text-white"
                     inputClass="font-inter !text-sm !rounded-full min-h-12 !px-5 placeholder:text-white/60 text-white"
                     placeholder="Enter your email address..."
                     required
                   />
                   <Input
-                    className="mb-0"
+                    name="password"
                     type="password"
                     label="Password"
+                    value={registerForm.password}
+                    onChange={handleRegisterChange}
                     labelClass="font-inter text-xs uppercase !text-white"
                     inputClass="font-inter !text-sm !rounded-full min-h-12 !px-5 placeholder:text-white/60 text-white"
                     placeholder="Enter your password..."
                     required
                   />
-                  <Input
-                    className="mb-0"
-                    type="text"
-                    label="Code"
+                   <Input
+                    name="passwordConfirmation"
+                    type="password"
+                    label="Confirm Password"
+                    value={registerForm.passwordConfirmation}
+                    onChange={handleRegisterChange}
                     labelClass="font-inter text-xs uppercase !text-white"
                     inputClass="font-inter !text-sm !rounded-full min-h-12 !px-5 placeholder:text-white/60 text-white"
-                    placeholder="Enter code..."
+                    placeholder="Confirm your password..."
                     required
                   />
-                  <button className="btn font-inter font-bold">Signup</button>
-                </div>
+                  <Input
+                    name="code"
+                    type="text"
+                    label="Code (Optional)"
+                    value={registerForm.code}
+                    onChange={handleRegisterChange}
+                    labelClass="font-inter text-xs uppercase !text-white"
+                    inputClass="font-inter !text-sm !rounded-full min-h-12 !px-5 placeholder:text-white/60 text-white"
+                    placeholder="Enter code (optional)..."
+                  />
+                  <button
+                    type="submit"
+                    className="btn font-inter font-bold"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? "Signing Up..." : "Signup"}
+                  </button>
+                </form>
               )}
             </div>
+            
+            {/* Visual/Close Section */}
             <div className="w-full md:w-1/2 bg-[#171925]/30 relative z-1 flex items-center justify-center md:py-6">
               <button
-                onClick={() => setLoginModal(false)}
+                onClick={closeModal}
                 className="text-white/50 hover:text-white text-base absolute top-5 right-5 p-1 -m-1"
               >
                 <FaTimes />
@@ -221,7 +410,7 @@ export default function ActionBtn({}: Props) {
                   fill="white"
                 />
                 <path
-                  d="M112.858 136.405C106.361 136.405 102.017 131.646 102.017 124.506C102.017 115.403 107.947 108.717 115.993 108.717C121.47 108.717 125.701 112.305 126.079 117.216H124.341C123.812 113.136 120.45 110.341 115.993 110.341C108.892 110.341 103.754 116.309 103.754 124.506C103.754 130.739 107.305 134.743 112.896 134.743C117.466 134.743 120.677 132.666 122.717 128.322H124.643C122.377 133.686 118.411 136.405 112.858 136.405ZM132.397 136.443C129.224 136.443 127.146 134.554 127.146 131.684C127.146 128.095 129.979 125.753 134.777 125.375L140.934 124.884L141.047 124.318C141.727 120.88 140.103 118.954 136.552 118.954C133.228 118.954 131.302 120.389 130.811 123.222H129.111C129.677 119.558 132.473 117.405 136.59 117.405C141.01 117.405 143.427 119.936 142.785 123.94L140.896 135.99H139.499L139.763 132.59C138.214 135.008 135.457 136.443 132.397 136.443ZM132.775 134.932C136.854 134.932 139.876 131.986 140.594 127.302L140.745 126.32L134.663 126.811C130.962 127.113 128.808 128.926 128.808 131.684C128.808 133.648 130.357 134.932 132.775 134.932ZM145.465 131.268H147.165C147.165 133.421 149.016 134.932 151.66 134.932C154.531 134.932 156.495 133.421 156.495 131.192C156.495 129.568 155.777 128.699 153.851 128.019L150.98 127C148.449 126.093 147.203 124.582 147.203 122.353C147.203 119.445 149.734 117.405 153.36 117.405C157.062 117.405 159.215 119.369 159.215 122.693H157.515C157.402 120.087 156.08 118.916 153.284 118.916C150.64 118.916 148.865 120.276 148.865 122.353C148.865 123.94 149.696 124.922 151.584 125.602L154.418 126.622C157.062 127.566 158.157 128.888 158.157 131.192C158.157 134.252 155.437 136.443 151.66 136.443C148.034 136.443 145.465 134.29 145.465 131.268ZM169.418 136.443C165.036 136.443 161.901 133.081 161.901 128.397C161.901 122.202 166.056 117.405 171.42 117.405C176.217 117.405 179.126 121.069 178.37 125.753L178.181 126.924H163.638C163.601 127.415 163.563 127.906 163.563 128.397C163.563 132.288 165.943 134.932 169.418 134.932C172.327 134.932 174.895 133.383 175.84 130.815H177.539C176.331 134.365 173.158 136.443 169.418 136.443ZM171.42 118.916C167.831 118.916 164.885 121.673 163.903 125.564H176.708C177.35 121.56 175.084 118.916 171.42 118.916Z"
+                  d="M112.858 136.405C106.361 136.405 102.017 131.646 102.017 124.506C102.017 115.403 107.947 108.717 115.993 108.717C121.47 108.717 125.701 112.305 126.079 117.216H124.341C123.812 113.136 120.45 110.341 115.993 110.341C108.892 110.341 103.754 116.309 103.754 124.506C103.754 130.739 107.305 134.743 112.896 134.743C117.466 134.743 120.677 132.666 122.717 128.322H124.643C122.377 133.686 118.411 136.405 112.858 136.405ZM132.397 136.443C129.224 136.443 127.146 134.554 127.146 131.684C127.146 128.095 129.979 125.753 134.777 125.375L140.934 124.884L141.047 124.318C141.727 120.88 140.103 118.954 136.552 118.954C133.228 118.954 131.302 120.389 130.811 123.222H129.111C129.677 119.558 132.473 117.405 136.59 117.405C141.01 117.405 143.427 119.936 142.785 123.94L140.896 135.99H139.499L139.763 132.59C138.214 135.008 135.457 136.443 132.397 136.443ZM132.775 134.932C136.854 134.932 139.876 131.986 140.594 127.302L140.745 126.32L134.663 126.811C130.962 127.113 128.808 128.926 128.808 131.684C128.808 133.648 130.357 134.932 132.775 134.932ZM145.465 131.268H147.165C147.165 133.421 149.016 134.932 151.66 134.932C154.531 134.932 156.495 133.421 156.495 131.192C156.495 129.568 155.777 128.699 153.851 128.019L150.98 127C148.449 126.093 147.203 124.582 147.203 122.353C147.203 119.445 149.734 117.405 153.36 117.405C157.062 117.405 159.215 119.369 159.215 122.693H157.515C157.402 120.087 156.08 118.916 153.284 118.916C150.64 118.916 148.865 120.276 148.865 122.353C148.865 123.94 149.696 124.922 151.584 125.602L154.418 126.622C157.062 127.566 158.157 128.888 158.157 131.192C158.157 134.252 155.437 136.443 151.66 136.443C148.034 136.443 145.465 134.29 145.465 131.268ZM169.418 136.443C165.036 136.443 161.901 133.081 161.901 128.397C161.901 122.202 166.056 117.405 171.420 117.405C176.217 117.405 179.126 121.069 178.370 125.753L178.181 126.924H163.638C163.601 127.415 163.563 127.906 163.563 128.397C163.563 132.288 165.943 134.932 169.418 134.932C172.327 134.932 174.895 133.383 175.840 130.815H177.539C176.331 134.365 173.158 136.443 169.418 136.443ZM171.420 118.916C167.831 118.916 164.885 121.673 163.903 125.564H176.708C177.350 121.560 175.084 118.916 171.420 118.916Z"
                   fill="#CECFD9"
                 />
                 <defs>
