@@ -484,10 +484,10 @@ export default function UsersTable() {
       ) : filteredUsers.length === 0 ? (
         <div className="text-center py-8 text-white">No users found.</div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-white/10">
-          <table className="min-w-full text-sm text-left">
+        <div className=" rounded-xl border border-white/10">
+          <table className="min-w-full min-h-full text-sm text-left">
             <thead className="bg-white/8 text-[#8B8898] text-xs">
-              <tr>
+              <tr>  
                 <th className="px-6 text-nowrap py-4 font-medium">User</th>
                 <th className="px-6 text-nowrap py-4 font-medium">Status</th>
                 <th className="px-6 text-nowrap py-4 font-medium">Balance</th>
@@ -505,12 +505,20 @@ export default function UsersTable() {
                       onClick={() => fetchUserDetails(user.id)}
                       className="flex items-center gap-3 hover:opacity-80 transition-opacity"
                     >
-                      <span 
-                        className="size-8 rounded-full flex items-center justify-center text-white font-bold text-xs" 
-                        style={{ background: getAvatarColor(user.name) }}
-                      >
-                        {user.name.substring(0, 2).toUpperCase()}
-                      </span>
+{user.avatar ? (
+  <img
+    src={user.avatar}
+    alt={`${user.name} Avatar`}
+    className="size-8 rounded-full object-cover" 
+  />
+) : (
+  <span 
+    className="size-8 rounded-full flex items-center justify-center text-white font-bold text-xs" 
+    style={{ background: getAvatarColor(user.name) }}
+  >
+    {user.name.substring(0, 2).toUpperCase()}
+  </span>
+)}
                       <div className="text-left">
                         <div className="font-semibold text-base text-white flex items-center gap-2">
                           {user.name}
@@ -539,10 +547,15 @@ export default function UsersTable() {
                       {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-white font-medium">$0.00</td>
-                  <td className="px-6 py-4 text-white">0</td>
-                  <td className="px-6 py-4 text-[#FF8809] font-semibold">$0.00</td>
-                  <td className="px-6 py-4 text-[#8B8898]">{user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Never'}</td>
+                  <td className="px-6 py-4 text-white font-medium">{user.details.balance}</td>
+                  <td className="px-6 py-4 text-white">{user.details.cases_opened}</td>
+                  <td className="px-6 py-4 text-[#FF8809] font-semibold">{user.details.total_spent}</td>
+                  <td className="px-6 py-4 text-[#8B8898]">
+  {user.details?.last_login
+    ? new Date(user.details.last_login).toLocaleDateString()
+    : "Never"}
+</td>
+
                   <td className="px-6 py-4">
                     <div ref={(el) => { dropdownRefs.current[index] = el; }} className="relative">
                       <button 
@@ -636,88 +649,156 @@ export default function UsersTable() {
       )}
 
       {/* User Details Modal */}
-      {showDetailsModal && selectedUser && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[#1E202C] border border-white/10 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-white/10 flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-white">User Details</h2>
-              <button onClick={() => setShowDetailsModal(false)} className="text-[#8B8898] hover:text-white transition-colors">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                  <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    {showDetailsModal && selectedUser && (
+  <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-[#1E202C] border border-white/10 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="p-6 border-b border-white/10 flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-white">User Details</h2>
+        <button onClick={() => setShowDetailsModal(false)} className="text-[#8B8898] hover:text-white transition-colors">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <div className="p-6 space-y-4">
+        {/* User Header Info */}
+        <div className="flex items-center gap-4 pb-4 border-b border-white/10">
+          <span
+            className="size-16 rounded-full flex items-center justify-center text-white font-bold text-2xl"
+            // Note: getAvatarColor function is assumed to be defined elsewhere in your component
+            style={{ background: getAvatarColor(selectedUser.name) }}
+          >
+            {/* Displaying 'AD' for 'Admin User' */}
+            {selectedUser.name.substring(0, 2).toUpperCase()}
+          </span>
+          <div>
+            <div className="text-xl font-bold text-white flex items-center gap-2">
+              {/* Name: Admin User */}
+              {selectedUser.name}
+              {/* Is Verified Check */}
+              {selectedUser.is_verified && (
+                <svg width="20" height="20" viewBox="0 0 14 15" fill="none">
+                  <path d="M12.8334 6.96309V7.49976C12.8326 8.75767 12.4253 9.98165 11.6721 10.9892C10.919 11.9967 9.86027 12.7337 8.65398 13.0904C7.44769 13.447 6.15842 13.4042 4.97846 12.9683C3.7985 12.5323 2.79107 11.7266 2.10641 10.6714C1.42176 9.61611 1.09657 8.3678 1.17933 7.11261C1.2621 5.85742 1.74839 4.66262 2.56568 3.70638C3.38298 2.75015 4.48748 2.08373 5.71446 1.80651C6.94145 1.52929 8.22518 1.65612 9.37419 2.16809" stroke="#39FF67" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M12.8333 2.8335L7 8.67266L5.25 6.92266" stroke="#39FF67" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-              </button>
+              )}
             </div>
-            <div className="p-6 space-y-4">
-              <div className="flex items-center gap-4 pb-4 border-b border-white/10">
-                <span 
-                  className="size-16 rounded-full flex items-center justify-center text-white font-bold text-2xl" 
-                  style={{ background: getAvatarColor(selectedUser.name) }}
-                >
-                  {selectedUser.name.substring(0, 2).toUpperCase()}
-                </span>
-                <div>
-                  <div className="text-xl font-bold text-white flex items-center gap-2">
-                    {selectedUser.name}
-                    {selectedUser.is_verified && (
-                      <svg width="20" height="20" viewBox="0 0 14 15" fill="none">
-                        <path d="M12.8334 6.96309V7.49976C12.8326 8.75767 12.4253 9.98165 11.6721 10.9892C10.919 11.9967 9.86027 12.7337 8.65398 13.0904C7.44769 13.447 6.15842 13.4042 4.97846 12.9683C3.7985 12.5323 2.79107 11.7266 2.10641 10.6714C1.42176 9.61611 1.09657 8.3678 1.17933 7.11261C1.2621 5.85742 1.74839 4.66262 2.56568 3.70638C3.38298 2.75015 4.48748 2.08373 5.71446 1.80651C6.94145 1.52929 8.22518 1.65612 9.37419 2.16809" stroke="#39FF67" strokeLinecap="round" strokeLinejoin="round" />
-                        <path d="M12.8333 2.8335L7 8.67266L5.25 6.92266" stroke="#39FF67" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    )}
-                  </div>
-                  <div className="text-[#8B8898]">{selectedUser.email}</div>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white/5 rounded-xl p-4">
-                  <div className="text-[#8B8898] text-sm mb-1">User ID</div>
-                  <div className="text-white font-semibold">#{selectedUser.id}</div>
-                </div>
-                <div className="bg-white/5 rounded-xl p-4">
-                  <div className="text-[#8B8898] text-sm mb-1">Role</div>
-                  <div className="text-white font-semibold capitalize">{selectedUser.role.name}</div>
-                </div>
-                <div className="bg-white/5 rounded-xl p-4">
-                  <div className="text-[#8B8898] text-sm mb-1">Status</div>
-                  <div className={`font-semibold capitalize ${selectedUser.status === 'active' ? 'text-[#39FF67]' : 'text-[#FF3063]'}`}>
-</div>
-                </div>
-                <div className="bg-white/5 rounded-xl p-4">
-                  <div className="text-[#8B8898] text-sm mb-1">Join Date</div>
-                  <div className="text-white font-semibold">
-                    {selectedUser.join_date ? new Date(selectedUser.join_date).toLocaleDateString() : 'N/A'}
-                  </div>
-                </div>
-                <div className="bg-white/5 rounded-xl p-4">
-                  <div className="text-[#8B8898] text-sm mb-1">Last Login</div>
-                  <div className="text-white font-semibold">
-                    {selectedUser.last_login ? new Date(selectedUser.last_login).toLocaleDateString() : 'Never'}
-                  </div>
-                </div>
-                <div className="bg-white/5 rounded-xl p-4">
-                  <div className="text-[#8B8898] text-sm mb-1">Country</div>
-                  <div className="text-white font-semibold">{selectedUser.country || 'N/A'}</div>
-                </div>
-                <div className="bg-white/5 rounded-xl p-4">
-                  <div className="text-[#8B8898] text-sm mb-1">IP Address</div>
-                  <div className="text-white font-semibold">{selectedUser.ip_address || 'N/A'}</div>
-                </div>
-                <div className="bg-white/5 rounded-xl p-4">
-                  <div className="text-[#8B8898] text-sm mb-1">2FA Enabled</div>
-                  <div className={`font-semibold ${selectedUser.two_factor_enabled ? 'text-[#39FF67]' : 'text-[#FF3063]'}`}>
-                    {selectedUser.two_factor_enabled ? 'Yes' : 'No'}
-                  </div>
-                </div>
-                <div className="bg-white/5 rounded-xl p-4">
-                  <div className="text-[#8B8898] text-sm mb-1">Steam ID</div>
-                  <div className="text-white font-semibold">{selectedUser.steamid || 'Not linked'}</div>
-                </div>
-              </div>
-            </div>
+            {/* Email: admin@example.com */}
+            <div className="text-[#8B8898]">{selectedUser.email}</div>
           </div>
         </div>
-      )}
+        
+        {/* Details Grid */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-white/5 rounded-xl p-4">
+            <div className="text-[#8B8898] text-sm mb-1">User ID</div>
+            {/* User ID: 1 */}
+            <div className="text-white font-semibold">#{selectedUser.id}</div>
+          </div>
+          <div className="bg-white/5 rounded-xl p-4">
+            <div className="text-[#8B8898] text-sm mb-1">Role</div>
+            {/* Role: admin */}
+            <div className="text-white font-semibold capitalize">{selectedUser.role.name}</div>
+          </div>
+          <div className="bg-white/5 rounded-xl p-4">
+            <div className="text-[#8B8898] text-sm mb-1">Status</div>
+            {/* Status: active (green for active, red otherwise) */}
+            <div className={`font-semibold capitalize ${selectedUser.status === 'active' ? 'text-[#39FF67]' : 'text-[#FF3063]'}`}>
+              {selectedUser.status}
+            </div>
+          </div>
+          <div className="bg-white/5 rounded-xl p-4">
+            <div className="text-[#8B8898] text-sm mb-1">Join Date</div>
+            <div className="text-white font-semibold">
+              {/* Join Date: null -> N/A */}
+              {selectedUser.join_date ? new Date(selectedUser.join_date).toLocaleDateString() : 'N/A'}
+            </div>
+          </div>
+          <div className="bg-white/5 rounded-xl p-4">
+            <div className="text-[#8B8898] text-sm mb-1">Last Login</div>
+            <div className="text-white font-semibold">
+              {/* Last Login: null -> Never */}
+              {selectedUser.last_login ? new Date(selectedUser.last_login).toLocaleDateString() : 'Never'}
+            </div>
+          </div>
+          <div className="bg-white/5 rounded-xl p-4">
+            <div className="text-[#8B8898] text-sm mb-1">Country</div>
+            {/* Country: null -> N/A */}
+            <div className="text-white font-semibold">{selectedUser.country || 'N/A'}</div>
+          </div>
+          <div className="bg-white/5 rounded-xl p-4">
+            <div className="text-[#8B8898] text-sm mb-1">IP Address</div>
+            {/* IP Address: null -> N/A */}
+            <div className="text-white font-semibold">{selectedUser.ip_address || 'N/A'}</div>
+          </div>
+          <div className="bg-white/5 rounded-xl p-4">
+            <div className="text-[#8B8898] text-sm mb-1">2FA Enabled</div>
+            {/* 2FA Enabled: false (red for no, green for yes) */}
+            <div className={`font-semibold ${selectedUser.two_factor_enabled ? 'text-[#39FF67]' : 'text-[#FF3063]'}`}>
+              {selectedUser.two_factor_enabled ? 'Yes' : 'No'}
+            </div>
+          </div>
+          <div className="bg-white/5 rounded-xl p-4">
+            <div className="text-[#8B8898] text-sm mb-1">Steam ID</div>
+            {/* Steam ID: null -> Not linked */}
+            <div className="text-white font-semibold">{selectedUser.steamid || 'Not linked'}</div>
+          </div>
+          
+          {/* Section for Details from the 'details' object */}
+          <div className="bg-white/5 rounded-xl p-4">
+            <div className="text-[#8B8898] text-sm mb-1">Balance</div>
+            {/* Balance: 3212.00 */}
+            <div className="text-white font-semibold">${selectedUser.details.balance}</div>
+          </div>
+          <div className="bg-white/5 rounded-xl p-4">
+            <div className="text-[#8B8898] text-sm mb-1">Total Spent</div>
+            {/* Total Spent: 203.00 */}
+            <div className="text-white font-semibold">${selectedUser.details.total_spent}</div>
+          </div>
+          <div className="bg-white/5 rounded-xl p-4">
+            <div className="text-[#8B8898] text-sm mb-1">Total Won</div>
+            {/* Total Won: 32.00 */}
+            <div className="text-white font-semibold">${selectedUser.details.total_won}</div>
+          </div>
+          <div className="bg-white/5 rounded-xl p-4">
+            <div className="text-[#8B8898] text-sm mb-1">Cases Opened</div>
+            {/* Cases Opened: 2 */}
+            <div className="text-white font-semibold">{selectedUser.details.cases_opened}</div>
+          </div>
+          <div className="bg-white/5 rounded-xl p-4">
+            <div className="text-[#8B8898] text-sm mb-1">Steam ID (Details)</div>
+            {/* Steam ID: pending-1 */}
+            <div className="text-white font-semibold">{selectedUser.details.steam_id}</div>
+          </div>
+          <div className="bg-white/5 rounded-xl p-4">
+            <div className="text-[#8B8898] text-sm mb-1">VAC Banned</div>
+            {/* VAC Banned: false (red for yes, green for no) */}
+            <div className={`font-semibold ${selectedUser.details.vac_banned ? 'text-[#FF3063]' : 'text-[#39FF67]'}`}>
+              {selectedUser.details.vac_banned ? 'Yes' : 'No'}
+            </div>
+          </div>
+          <div className="bg-white/5 rounded-xl p-4">
+            <div className="text-[#8B8898] text-sm mb-1">Community Banned</div>
+            {/* Community Banned: false (red for yes, green for no) */}
+            <div className={`font-semibold ${selectedUser.details.community_banned ? 'text-[#FF3063]' : 'text-[#39FF67]'}`}>
+              {selectedUser.details.community_banned ? 'Yes' : 'No'}
+            </div>
+          </div>
+          <div className="bg-white/5 rounded-xl p-4">
+            <div className="text-[#8B8898] text-sm mb-1">Account Level</div>
+            {/* Level: 1 */}
+            <div className="text-white font-semibold">{selectedUser.details.level}</div>
+          </div>
+          <div className="bg-white/5 rounded-xl p-4">
+            <div className="text-[#8B8898] text-sm mb-1">Owned Games</div>
+            {/* Owned Games Count: 0 */}
+            <div className="text-white font-semibold">{selectedUser.details.owned_games_count}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* Edit Password Modal */}
       {showEditModal && selectedUser && (
