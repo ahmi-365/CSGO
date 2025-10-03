@@ -1,7 +1,7 @@
 "use client"
 import { useState, useEffect, useRef } from 'react';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ;
 
 const getAuthData = () => {
   if (typeof window === 'undefined') return null;
@@ -547,9 +547,16 @@ export default function UsersTable() {
                       {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-white font-medium">{user.details.balance}</td>
-                  <td className="px-6 py-4 text-white">{user.details.cases_opened}</td>
-                  <td className="px-6 py-4 text-[#FF8809] font-semibold">{user.details.total_spent}</td>
+                 <td className="px-6 py-4 text-white font-medium">
+  {user.details?.balance ?? 0}
+</td>
+<td className="px-6 py-4 text-white">
+  {user.details?.cases_opened ?? 0}
+</td>
+<td className="px-6 py-4 text-[#FF8809] font-semibold">
+  {user.details?.total_spent ?? 0}
+</td>
+
                   <td className="px-6 py-4 text-[#8B8898]">
   {user.details?.last_login
     ? new Date(user.details.last_login).toLocaleDateString()

@@ -71,17 +71,49 @@ export default function Left({ className }: Props) {
         }
     ]
 
-    const signOut = async () => {
-        if ('cookieStore' in window) {
-            try {
-                await window.cookieStore.delete('auth');
-            } catch (err) {
-                console.error("Failed to delete auth cookie:", err);
-            }
-        } else {
-            document.cookie = "auth=; path=/; max-age=0; SameSite=Lax";
-        }
-    };
+const signOut = async () => {
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+    // LocalStorage se uth (user) data nikaalo
+    const storedAuth = localStorage.getItem("auth");
+    const auth = storedAuth ? JSON.parse(storedAuth) : null;
+
+    await fetch(`${baseUrl}/api/logout`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${auth?.token}`, // 👈 token send here
+      },
+      body: JSON.stringify({
+        userId: auth?.user?.id, // agar server ko chahiye to user id bhi bhej do
+      }),
+    });
+
+    // Clear uth only
+    localStorage.removeItem("auth");
+
+    // Delete cookie manually (fallback)
+    if ("cookieStore" in window) {
+      try {
+        await window.cookieStore.delete("auth");
+      } catch (err) {
+        console.error("Failed to delete auth cookie:", err);
+      }
+    } else {
+      document.cookie = "auth=; path=/; max-age=0; SameSite=Lax";
+    }
+
+    // Redirect to home
+    router.push("/");
+
+  } catch (err) {
+    console.error("Logout failed:", err);
+  }
+};
+
+
 
 
     const setParams = () => {

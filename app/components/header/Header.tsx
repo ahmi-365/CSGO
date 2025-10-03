@@ -19,11 +19,28 @@ interface LoginItem {
   path: string;
 }
 
+interface UserData {
+  user: {
+    name: string;
+    email: string;
+    avatar: string | null;
+  };
+  details: {
+    balance: string;
+    level: number;
+    cases_opened: number;
+  };
+  // ⚡ ADDED isAdmin TO THE INTERFACE ⚡
+  isAdmin: boolean; 
+}
+
 type Props = {}
 
 export default function Header({ }: Props) {
   const pathname = usePathname();
   const [isAuth, setIsAuth] = useState(false)
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const loginInfo: LoginItem[] = [
     {
@@ -96,46 +113,95 @@ export default function Header({ }: Props) {
     };
   }, []);
 
-  const signOut = async () => {
-    setIsAuth(false);
-    if ('cookieStore' in window) {
+  // Fetch user data from localStorage
+  useEffect(() => {
+    const storedUserData = localStorage.getItem('auth');
+    if (storedUserData) {
       try {
-        await window.cookieStore.delete('auth');
-      } catch (err) {
-        console.error("Failed to delete auth cookie:", err);
+        const parsedData: UserData = JSON.parse(storedUserData);
+        // Ensure isAdmin is correctly set, defaulting to false if missing
+        if (typeof parsedData.isAdmin !== 'boolean') {
+            parsedData.isAdmin = false;
+        }
+        setUserData(parsedData);
+        setIsAuth(!!parsedData.user); // Assuming presence of user object implies authentication
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+        setUserData(null);
+        setIsAuth(false);
       }
     } else {
-      document.cookie = "auth=; path=/; max-age=0; SameSite=Lax";
+        setIsAuth(false);
+    }
+  }, []); // Removed isAuth from dependency array to prevent infinite loop
+
+  const signOut = async () => {
+    if (isLoggingOut) return;
+    
+    setIsLoggingOut(true);
+    
+    try {
+      const token = localStorage.getItem('authToken');
+      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+      
+      // Call the logout API
+      const response = await fetch(`${baseUrl}/api/logout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        },
+      });
+
+      // Clear local storage regardless of API response
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userData');
+      localStorage.removeItem('user');
+      localStorage.removeItem('auth'); // Ensure 'auth' item is also cleared
+      // localStorage.clear(); // A more aggressive option if you want to clear everything
+
+      // Clear cookies
+      if ('cookieStore' in window) {
+        try {
+          // @ts-ignore
+          await window.cookieStore.delete('auth');
+        } catch (err) {
+          console.error("Failed to delete auth cookie:", err);
+        }
+      } else {
+        document.cookie = "auth=; path=/; max-age=0; SameSite=Lax";
+      }
+
+      // Update state
+      setIsAuth(false);
+      setUserData(null);
+      setIsInfoModal(false);
+
+      // Redirect to home page
+      window.location.href = '/';
+      
+    } catch (error) {
+      console.error('Logout error:', error);
+      
+      // Still clear everything even if API fails
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userData');
+      localStorage.removeItem('user');
+      localStorage.removeItem('auth');
+      
+      setIsAuth(false);
+      setUserData(null);
+      setIsInfoModal(false);
+      window.location.href = '/';
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
-  useEffect(() => {
-    const handleCookieChange = (event: any) => {
-      const changed = event.changed.find((c: any) => c.name === 'auth');
-      const deleted = event.deleted.find((c: any) => c.name === 'auth');
-
-      if (changed) {
-        setIsAuth(changed.value === 'true');
-      } else if (deleted) {
-        setIsAuth(false);
-      }
-    };
-
-    if ('cookieStore' in window) {
-      window.cookieStore.addEventListener('change', handleCookieChange);
-      window.cookieStore.get('auth').then(cookie => {
-        setIsAuth(cookie?.value === 'true');
-      });
-    } else {
-      setIsAuth(document.cookie.includes('auth=true'));
-    }
-
-    return () => {
-      if ('cookieStore' in window) {
-        window.cookieStore.removeEventListener('change', handleCookieChange);
-      }
-    };
-  }, []);
+  // NOTE: I commented out the cookieStore useEffect as it conflicts with 
+  // the localStorage-based auth check and relies on a global variable 'window.cookieStore'
+  // which is not always available. Use the localStorage check above instead.
 
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
@@ -150,8 +216,25 @@ export default function Header({ }: Props) {
   }, [scrolled, setScrolled]);
 
   const loginInfoLinkStyle = 'flex items-center gap-3 min-h-11 rounded-xl px-3 font-medium text-white hover:bg-white/10'
-  const walletAmount = 24.99;
+  
+  // Dynamic values with fallbacks
+  const walletAmount = userData?.details?.balance 
+    ? parseFloat(userData.details.balance) 
+    : 0;
   const cc_rate = 6.395;
+  const userAvatar = userData?.user?.avatar || '/img/login-user.png';
+  const userName = userData?.user?.name || 'User';
+
+  // 🚀 LOGIC TO FILTER ADMIN PANEL LINK 🚀
+  const filteredLoginInfo = loginInfo.filter(item => {
+    // Only show 'Admin Panel' if userData exists AND userData.isAdmin is true
+    if (item.name === 'Admin Panel' && (!userData || !userData.isAdmin)) {
+      return false;
+    }
+    // Show all other links
+    return true; 
+  });
+  // 🚀 END LOGIC 🚀
 
   return (
     <>
@@ -187,12 +270,12 @@ export default function Header({ }: Props) {
             <Link href={'/deposit'} className='flex items-center justify-center gap-2 rounded-full bg-white/[6%] size-10 hover:bg-primary/20'>{bolt}</Link>
             <div ref={dropdownRef} className="relative z-1">
               <button onClick={() => setIsInfoModal((prev) => !prev)} className='flex items-center justify-center gap-2 p-2 rounded-full bg-white/[6%] size-10 overflow-hidden relative z-1'>
-                <img className='absolute top-0 left-0 w-full min-h-full h-auto object-cover' src="/img/login-user.png" alt="" />
+                <img className='absolute top-0 left-0 w-full min-h-full h-auto object-cover' src={userAvatar} alt={userName} />
               </button>
             </div>
             {pathname.includes('/dashboard/') &&
               <Suspense fallback={'Loading btn...'}>
-                <Humberge />
+                <Humberge />x
               </Suspense>
             }
           </div>
@@ -206,15 +289,19 @@ export default function Header({ }: Props) {
 
 
       <div className={`fixed mt-3.5 top-13 right-5 z-10 rounded-2xl bg-[#D7DEFF]/15 border border-solid border-[#D7DEFF]/10 backdrop-blur-[20px] flex flex-col gap-y-1 p-3 w-full max-w-68 transition-all duration-300 ${isInfoModal ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible translate-y-4'}`}>
-        {loginInfo?.map((item, index) => (
+        {/* Mapped over the filtered array */}
+        {filteredLoginInfo?.map((item, index) => (
           <React.Fragment key={index}>
-            {index === 1 ?
+            {/* The balance item (index 1 in the original list, but now checked by name/path for robustness) */}
+            {item.name === 'Withdraw' ?
               <div className="bg-white/4 border border-solid border-white/4 rounded-xl flex items-center gap-2 p-3">
                 <div className="size-9 flex-none bg-[#171925] flex items-center justify-center overflow-hidden rounded-full"><img src="/img/favicon.svg" alt="" /></div>
                 <div className="grow flex flex-col gap-y-1.5">
                   <span className='block text-white/60 text-xs font-medium !leading-[120%]'>Balance</span>
                   <div className="flex items-center gap-2">
-                    <button className='grow px-2.5 py-1 min-h-7 text-xs font-satoshi text-white bg-white/10 rounded-full flex items-center justify-center uppercase'>{walletAmount} USD</button>
+                    <button className='grow px-2.5 py-1 min-h-7 text-xs font-satoshi text-white bg-white/10 rounded-full flex items-center justify-center uppercase'>
+                      {walletAmount.toFixed(2)} USD
+                    </button>
                     <button className='grow gradient-border-two min-h-7 text-xs font-satoshi text-white rounded-full flex items-center justify-center uppercase [--bg-color:#4B4172]'>
                       <span className='px-2.5 py-1 block size-full'>{(walletAmount / cc_rate).toFixed(3)} CC</span>
                     </button>
@@ -222,6 +309,7 @@ export default function Header({ }: Props) {
                 </div>
               </div>
               :
+              // All other items, including the Admin Panel if the user is an admin
               <Link onClick={() => setIsInfoModal(false)} href={item.path} className={loginInfoLinkStyle}>
                 {item.icon} {item.name}
                 <span className='ml-auto'>
@@ -233,11 +321,15 @@ export default function Header({ }: Props) {
             }
           </React.Fragment>
         ))}
-        <button onClick={() => { setIsInfoModal(false); signOut() }} className={`${loginInfoLinkStyle} !text-[#E94444]`}>
+        <button 
+          onClick={() => { setIsInfoModal(false); signOut() }} 
+          className={`${loginInfoLinkStyle} !text-[#E94444]`}
+          disabled={isLoggingOut}
+        >
           <svg width="20" height="21" viewBox="0 0 20 21" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path fillRule="evenodd" clipRule="evenodd" d="M2.9165 8.47297V12.527C2.9165 14.4381 2.9165 15.3937 3.51785 15.9874C4.06417 16.5268 4.91299 16.5761 6.51522 16.5806C6.43055 16.0187 6.41287 15.3473 6.40841 14.5574C6.40652 14.2216 6.68074 13.9478 7.02091 13.946C7.36107 13.9441 7.63837 14.2148 7.64026 14.5507C7.64526 15.4373 7.66858 16.0657 7.75732 16.5427C7.84282 17.0023 7.98012 17.2683 8.18005 17.4657C8.40734 17.6901 8.72646 17.8364 9.32907 17.9164C9.9494 17.9987 10.7716 18 11.9504 18H12.7716C13.9505 18 14.7726 17.9987 15.3929 17.9164C15.9956 17.8364 16.3147 17.6901 16.542 17.4657C16.7693 17.2413 16.9174 16.9262 16.9985 16.3313C17.0819 15.7188 17.0832 14.9071 17.0832 13.7432V7.25676C17.0832 6.09291 17.0819 5.28119 16.9985 4.66875C16.9174 4.07379 16.7693 3.75873 16.542 3.53433C16.3147 3.30993 15.9956 3.16362 15.3929 3.08363C14.7726 3.00129 13.9505 3 12.7716 3H11.9504C10.7716 3 9.9494 3.00129 9.32907 3.08363C8.72646 3.16362 8.40734 3.30993 8.18005 3.53433C7.98012 3.73173 7.84282 3.99773 7.75732 4.45731C7.66858 4.93427 7.64526 5.56271 7.64026 6.44933C7.63837 6.78517 7.36107 7.05591 7.02091 7.05405C6.68074 7.05218 6.40652 6.7784 6.40841 6.44256C6.41287 5.65268 6.43055 4.98131 6.51522 4.41937C4.91299 4.42389 4.06417 4.47324 3.51785 5.01262C2.9165 5.60632 2.9165 6.56187 2.9165 8.47297ZM4.94471 10.93C4.70417 10.6925 4.70417 10.3075 4.94471 10.07L6.5872 8.44838C6.82774 8.2109 7.21773 8.2109 7.45826 8.44838C7.6988 8.68586 7.6988 9.0709 7.45826 9.30838L6.86724 9.89189L12.7715 9.89189C13.1116 9.89189 13.3874 10.1642 13.3874 10.5C13.3874 10.8358 13.1116 11.1081 12.7715 11.1081L6.86724 11.1081L7.45826 11.6916C7.6988 11.9291 7.6988 12.3141 7.45826 12.5516C7.21773 12.7891 6.82774 12.7891 6.5872 12.5516L4.94471 10.93Z" fill="#E94444" />
           </svg>
-          <span>Log Out</span>
+          <span>{isLoggingOut ? 'Logging out...' : 'Log Out'}</span>
           <svg className='ml-auto' width="20" height="21" viewBox="0 0 20 21" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M5.8335 14.6667L14.1668 6.33334" stroke="#E94444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             <path d="M5.8335 6.33334H14.1668V14.6667" stroke="#E94444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />

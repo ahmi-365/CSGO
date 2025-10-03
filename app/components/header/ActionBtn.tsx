@@ -45,13 +45,13 @@ export default function ActionBtn({}: Props) {
 
   // --- Form Handlers ---
 
-  const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setLoginForm({ ...loginForm, [name]: value });
     setError(null);
   };
 
-  const handleRegisterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleRegisterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setRegisterForm({ ...registerForm, [name]: value });
     setError(null);
@@ -123,10 +123,11 @@ export default function ActionBtn({}: Props) {
     try {
       await loginUser(
         loginForm.email.trim(), 
-        loginForm.password, 
-        loginForm.code.trim() || undefined // Pass code only if it has a value
+        loginForm.password
       );
       await handleSuccessfulAuth();
+            window.location.reload(); 
+
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Login failed. Please check your credentials.");
@@ -175,6 +176,7 @@ export default function ActionBtn({}: Props) {
         registerForm.code.trim() || undefined // Pass code only if it has a value
       );
       await handleSuccessfulAuth();
+      window.location.reload(); 
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Registration failed. Try again.");
@@ -349,7 +351,7 @@ export default function ActionBtn({}: Props) {
                     placeholder="Confirm your password..."
                     required
                   />
-                  <Input
+                  {/* <Input
                     name="code"
                     type="text"
                     label="Code (Optional)"
@@ -358,7 +360,7 @@ export default function ActionBtn({}: Props) {
                     labelClass="font-inter text-xs uppercase !text-white"
                     inputClass="font-inter !text-sm !rounded-full min-h-12 !px-5 placeholder:text-white/60 text-white"
                     placeholder="Enter code (optional)..."
-                  />
+                  /> */}
                   <button
                     type="submit"
                     className="btn font-inter font-bold"

@@ -1,201 +1,331 @@
-import React from 'react'
+'use client';
+
+import React, { useState, useEffect } from 'react';
 import CollectionCard from '@/app/components/dashboard/CollectionCard';
-import InfoCard from '@/app/components/dashboard/InfoCard'
+import InfoCard from '@/app/components/dashboard/InfoCard';
 import { CollectionItem, caseInfoItem } from '@/app/utilities/Types';
 import Link from 'next/link';
-
+import { Layers, List, DollarSign, Settings, Plus, X } from 'lucide-react';
 
 type Props = {}
 
-export default function page({ }: Props) {
+interface CrateFormData {
+    name: string;
+    price: string;
+    image: string;
+    description: string | null;
+    type: string;
+    first_sale_date: string;
+    market_hash_name: string;
+    rental: boolean;
+    model_player: string;
+    loot_name: string | null;
+    loot_footer: string | null;
+    loot_image: string | null;
+}
+
+export default function Page({ }: Props) {
+    const [crates, setCrates] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [showModal, setShowModal] = useState(false);
+    const [showDetailsModal, setShowDetailsModal] = useState(false);
+    const [editingCrate, setEditingCrate] = useState<any>(null);
+    const [viewingCrate, setViewingCrate] = useState<any>(null);
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [formData, setFormData] = useState<CrateFormData>({
+        name: '',
+        price: '',
+        image: '',
+        description: null,
+        type: 'Case',
+        first_sale_date: '',
+        market_hash_name: '',
+        rental: true,
+        model_player: '',
+        loot_name: null,
+        loot_footer: null,
+        loot_image: null
+    });
+
+    const baseUrl = 'https://backend.bismeel.com';
+
+    // Get auth token from localStorage
+    const getAuthToken = () => {
+        if (typeof window === 'undefined') return null;
+        const authData = localStorage.getItem('auth');
+        if (!authData) return null;
+        try {
+            const parsed = JSON.parse(authData);
+            return parsed.token;
+        } catch {
+            return null;
+        }
+    };
+
+    // Get headers with auth token
+    const getHeaders = () => {
+        const token = getAuthToken();
+        return {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` })
+        };
+    };
+
+    // Fetch crates data
+    const fetchCrates = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const response = await fetch(`${baseUrl}/api/admin/crates`, {
+                headers: getHeaders()
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch crates');
+            }
+
+            const data = await response.json();
+            const cratesData = data.crates.data || [];
+            setCrates(cratesData);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'An error occurred');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Fetch single crate details
+    const fetchCrateDetails = async (crateId: string) => {
+        try {
+            const response = await fetch(`${baseUrl}/api/admin/crates/${crateId}`, {
+                headers: getHeaders()
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch crate details');
+            }
+
+            const data = await response.json();
+            return data.crate || data;
+        } catch (err) {
+            console.error('Error fetching crate details:', err);
+            throw err;
+        }
+    };
+
+    // Create new crate
+    const handleCreate = async () => {
+        try {
+            const response = await fetch(`${baseUrl}/api/admin/crates`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify(formData)
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to create crate');
+            }
+
+            await fetchCrates();
+            setShowModal(false);
+            resetForm();
+            alert('Case created successfully!');
+        } catch (err) {
+            alert(err instanceof Error ? err.message : 'Failed to create crate');
+        }
+    };
+
+    // Update crate
+    const handleUpdate = async () => {
+        if (!editingCrate) return;
+
+        try {
+            const response = await fetch(`${baseUrl}/api/admin/crates/${editingCrate.id}`, {
+                method: 'PUT',
+                headers: getHeaders(),
+                body: JSON.stringify(formData)
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to update crate');
+            }
+
+            await fetchCrates();
+            setShowModal(false);
+            setIsEditMode(false);
+            setEditingCrate(null);
+            resetForm();
+            alert('Case updated successfully!');
+        } catch (err) {
+            alert(err instanceof Error ? err.message : 'Failed to update crate');
+        }
+    };
+
+    // Delete crate
+    const handleDelete = async (crateId: string) => {
+        if (!confirm('Are you sure you want to delete this case?')) return;
+
+        try {
+            const response = await fetch(`${baseUrl}/api/admin/crates/${crateId}`, {
+                method: 'DELETE',
+                headers: getHeaders(),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete crate');
+            }
+
+            await fetchCrates();
+            alert('Case deleted successfully!');
+        } catch (err) {
+            alert(err instanceof Error ? err.message : 'Failed to delete crate');
+        }
+    };
+
+    // View crate details
+    const handleViewDetails = async (crateId: string) => {
+        try {
+            const crateDetails = await fetchCrateDetails(crateId);
+            console.log('Crate Details:', crateDetails);
+            setViewingCrate(crateDetails);
+            setShowDetailsModal(true);
+        } catch (err) {
+            console.error('Error viewing details:', err);
+            alert('Failed to load crate details');
+        }
+    };
+
+    // Open edit modal
+    const handleEdit = async (crateId: string) => {
+        try {
+            console.log('Editing crate:', crateId);
+            const crateDetails = await fetchCrateDetails(crateId);
+            console.log('Fetched crate details:', crateDetails);
+            setEditingCrate(crateDetails);
+            setFormData({
+                name: crateDetails.name || '',
+                price: crateDetails.price || '',
+                image: crateDetails.image || '',
+                description: crateDetails.description || null,
+                type: crateDetails.type || 'Case',
+                first_sale_date: crateDetails.first_sale_date || '',
+                market_hash_name: crateDetails.market_hash_name || '',
+                rental: crateDetails.rental === 1 || crateDetails.rental === true || crateDetails.rental === '1',
+                model_player: crateDetails.model_player || '',
+                loot_name: crateDetails.loot_name || null,
+                loot_footer: crateDetails.loot_footer || null,
+                loot_image: crateDetails.loot_image || null
+            });
+            setIsEditMode(true);
+            setShowModal(true);
+        } catch (err) {
+            console.error('Error editing crate:', err);
+            alert('Failed to load crate details');
+        }
+    };
+
+    // Open create modal
+    const handleOpenCreateModal = () => {
+        resetForm();
+        setIsEditMode(false);
+        setEditingCrate(null);
+        setShowModal(true);
+    };
+
+    // Reset form
+    const resetForm = () => {
+        setFormData({
+            name: '',
+            price: '',
+            image: '',
+            description: null,
+            type: 'Case',
+            first_sale_date: '',
+            market_hash_name: '',
+            rental: true,
+            model_player: '',
+            loot_name: null,
+            loot_footer: null,
+            loot_image: null
+        });
+    };
+
+    // Handle form input change
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: value === '' ? null : value
+        }));
+    };
+
+    useEffect(() => {
+        fetchCrates();
+    }, []);
+
+    // Calculate stats
+    const totalCases = crates.length;
+    const activeCases = crates.length;
+    const totalItems = crates.reduce((sum, crate) => {
+        return sum + (crate.items?.length || 0) + (crate.weapons?.length || 0);
+    }, 0);
+    const totalValue = crates.reduce((sum, crate) => {
+        return sum + parseFloat(crate.price || '0');
+    }, 0);
+
     const casesInfo: caseInfoItem[] = [
         {
-            icon: (<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30" fill="none">
-                <path d="M9.53053 5.56112C11.8765 4.62245 13.276 4.0625 15 4.0625C16.724 4.0625 18.1235 4.62245 20.4695 5.56112L24.1813 7.04587C25.3745 7.52314 26.341 7.90971 27.0044 8.25752C27.3402 8.43354 27.6654 8.6331 27.9162 8.87367C28.1739 9.12085 28.4375 9.49572 28.4375 10C28.4375 10.5043 28.1739 10.8791 27.9162 11.1263C27.6654 11.3669 27.3402 11.5665 27.0044 11.7425C26.341 12.0903 25.3746 12.4769 24.1813 12.9541L20.4695 14.4389C18.1235 15.3776 16.724 15.9375 15 15.9375C13.276 15.9375 11.8765 15.3776 9.53053 14.4389L5.81869 12.9541C4.62546 12.4769 3.659 12.0903 2.99558 11.7425C2.65983 11.5665 2.33457 11.3669 2.08376 11.1263C1.82606 10.8791 1.5625 10.5043 1.5625 10C1.5625 9.49572 1.82606 9.12085 2.08376 8.87367C2.33457 8.6331 2.65983 8.43354 2.99558 8.25752C3.65901 7.9097 4.62546 7.52314 5.8187 7.04586L9.53053 5.56112Z" fill="#702AEC" />
-                <path fillRule="evenodd" clipRule="evenodd" d="M3.12566 14.3018C3.12566 14.3018 3.12566 14.3018 3.12566 14.3018L3.12391 14.3003L3.12827 14.3041C3.13377 14.3088 3.14403 14.3176 3.15903 14.3301C3.18904 14.3552 3.23802 14.3952 3.30598 14.4477C3.44192 14.5527 3.65361 14.7079 3.941 14.8943C4.51581 15.267 5.39274 15.7643 6.57172 16.2359L10.0823 17.6401C12.6133 18.6526 13.6745 19.0625 15 19.0625C16.3255 19.0625 17.3867 18.6526 19.9177 17.6401L23.4283 16.2359C24.6073 15.7643 25.4842 15.267 26.059 14.8943C26.3464 14.7079 26.5581 14.5527 26.694 14.4477C26.762 14.3952 26.811 14.3552 26.841 14.3301C26.856 14.3176 26.8662 14.3088 26.8717 14.3041L26.8743 14.3018C26.875 14.3012 26.8757 14.3006 26.8764 14.3C27.2618 13.9565 27.8528 13.9894 28.1979 14.374C28.5436 14.7594 28.5114 15.3521 28.126 15.6979L27.5 15C28.126 15.6979 28.1262 15.6977 28.126 15.6979L28.1243 15.6994L28.1221 15.7014L28.1163 15.7065L28.0992 15.7214C28.0853 15.7335 28.0665 15.7496 28.0427 15.7694C27.9951 15.8091 27.9277 15.8639 27.8405 15.9313C27.6662 16.066 27.4124 16.2513 27.0792 16.4674C26.4129 16.8996 25.428 17.4554 24.1246 17.9768L20.6141 19.381C20.5655 19.4005 20.5173 19.4198 20.4695 19.4389C18.1235 20.3776 16.724 20.9375 15 20.9375C13.276 20.9375 11.8765 20.3776 9.53053 19.4389C9.48273 19.4198 9.43454 19.4005 9.38594 19.381L5.87536 17.9768C4.57198 17.4554 3.58714 16.8996 2.92077 16.4674C2.58757 16.2513 2.33382 16.066 2.15946 15.9313C2.07227 15.8639 2.0049 15.8091 1.95733 15.7694C1.93355 15.7496 1.91471 15.7335 1.90082 15.7214L1.88369 15.7065L1.87791 15.7014L1.87571 15.6994L1.87437 15.6982C1.87417 15.698 1.87398 15.6979 2.5 15L1.87437 15.6982C1.48895 15.3525 1.4564 14.7594 1.80214 14.374C2.14719 13.9893 2.73844 13.9567 3.12391 14.3003M3.12566 14.3018C3.12566 14.3018 3.12566 14.3018 3.12566 14.3018V14.3018ZM3.1237 19.3001C2.73823 18.9565 2.14719 18.9893 1.80214 19.374L3.1237 19.3001ZM3.1237 19.3001L3.12827 19.3041C3.13377 19.3088 3.14403 19.3176 3.15903 19.3301C3.18904 19.3552 3.23802 19.3952 3.30598 19.4477C3.44192 19.5527 3.65361 19.7079 3.941 19.8943C4.51581 20.267 5.39274 20.7643 6.57172 21.2359L10.0823 22.6401C12.6133 23.6526 13.6745 24.0625 15 24.0625C16.3255 24.0625 17.3867 23.6526 19.9177 22.6401L23.4283 21.2359C24.6073 20.7643 25.4842 20.267 26.059 19.8943C26.3464 19.7079 26.5581 19.5527 26.694 19.4477C26.762 19.3952 26.811 19.3552 26.841 19.3301C26.856 19.3176 26.8662 19.3088 26.8717 19.3041L26.8743 19.3018C26.875 19.3012 26.8757 19.3006 26.8764 19.3C27.2618 18.9565 27.8528 18.9894 28.1979 19.374C28.5436 19.7594 28.5114 20.3521 28.126 20.6979L27.5208 20.0232C28.126 20.6979 28.1262 20.6977 28.126 20.6979L28.1243 20.6994L28.1221 20.7014L28.1163 20.7065L28.0992 20.7214C28.0853 20.7335 28.0665 20.7496 28.0427 20.7694C27.9951 20.8091 27.9277 20.8639 27.8405 20.9313C27.6662 21.066 27.4124 21.2513 27.0792 21.4674C26.4129 21.8995 25.428 22.4554 24.1246 22.9768L20.6141 24.381C20.5655 24.4005 20.5173 24.4198 20.4695 24.4389C18.1235 25.3776 16.724 25.9375 15 25.9375C13.276 25.9375 11.8765 25.3776 9.53053 24.4389C9.48273 24.4198 9.43454 24.4005 9.38594 24.381L5.87536 22.9768C4.57198 22.4554 3.58714 21.8995 2.92077 21.4674C2.58757 21.2513 2.33382 21.066 2.15946 20.9313C2.07227 20.8639 2.0049 20.8091 1.95733 20.7694C1.93355 20.7496 1.91471 20.7335 1.90082 20.7214L1.88369 20.7065L1.87791 20.7014L1.87571 20.6994L1.87437 20.6982C1.87417 20.698 1.87398 20.6979 2.5 20L1.87437 20.6982C1.48895 20.3525 1.4564 19.7594 1.80214 19.374" fill="#702AEC" />
-            </svg>),
-            value: "06",
+            icon: <Layers size={30} />,
+            value: totalCases.toString().padStart(2, '0'),
             label: "Total Cases",
             color: "#702AEC"
         },
         {
-            icon: (<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30" fill="none">
-                <path d="M9.53053 5.56112C11.8765 4.62245 13.276 4.0625 15 4.0625C16.724 4.0625 18.1235 4.62245 20.4695 5.56112L24.1813 7.04587C25.3745 7.52314 26.341 7.90971 27.0044 8.25752C27.3402 8.43354 27.6654 8.6331 27.9162 8.87367C28.1739 9.12085 28.4375 9.49572 28.4375 10C28.4375 10.5043 28.1739 10.8791 27.9162 11.1263C27.6654 11.3669 27.3402 11.5665 27.0044 11.7425C26.341 12.0903 25.3746 12.4769 24.1813 12.9541L20.4695 14.4389C18.1235 15.3776 16.724 15.9375 15 15.9375C13.276 15.9375 11.8765 15.3776 9.53053 14.4389L5.81869 12.9541C4.62546 12.4769 3.659 12.0903 2.99558 11.7425C2.65983 11.5665 2.33457 11.3669 2.08376 11.1263C1.82606 10.8791 1.5625 10.5043 1.5625 10C1.5625 9.49572 1.82606 9.12085 2.08376 8.87367C2.33457 8.6331 2.65983 8.43354 2.99558 8.25752C3.65901 7.9097 4.62546 7.52314 5.8187 7.04586L9.53053 5.56112Z" fill="#24E9FF" />
-                <path fillRule="evenodd" clipRule="evenodd" d="M3.12566 14.3018C3.12566 14.3018 3.12566 14.3018 3.12566 14.3018L3.12391 14.3003L3.12827 14.3041C3.13377 14.3088 3.14403 14.3176 3.15903 14.3301C3.18904 14.3552 3.23802 14.3952 3.30598 14.4477C3.44192 14.5527 3.65361 14.7079 3.941 14.8943C4.51581 15.267 5.39274 15.7643 6.57172 16.2359L10.0823 17.6401C12.6133 18.6526 13.6745 19.0625 15 19.0625C16.3255 19.0625 17.3867 18.6526 19.9177 17.6401L23.4283 16.2359C24.6073 15.7643 25.4842 15.267 26.059 14.8943C26.3464 14.7079 26.5581 14.5527 26.694 14.4477C26.762 14.3952 26.811 14.3552 26.841 14.3301C26.856 14.3176 26.8662 14.3088 26.8717 14.3041L26.8743 14.3018C26.875 14.3012 26.8757 14.3006 26.8764 14.3C27.2618 13.9565 27.8528 13.9894 28.1979 14.374C28.5436 14.7594 28.5114 15.3521 28.126 15.6979L27.5 15C28.126 15.6979 28.1262 15.6977 28.126 15.6979L28.1243 15.6994L28.1221 15.7014L28.1163 15.7065L28.0992 15.7214C28.0853 15.7335 28.0665 15.7496 28.0427 15.7694C27.9951 15.8091 27.9277 15.8639 27.8405 15.9313C27.6662 16.066 27.4124 16.2513 27.0792 16.4674C26.4129 16.8996 25.428 17.4554 24.1246 17.9768L20.6141 19.381C20.5655 19.4005 20.5173 19.4198 20.4695 19.4389C18.1235 20.3776 16.724 20.9375 15 20.9375C13.276 20.9375 11.8765 20.3776 9.53053 19.4389C9.48273 19.4198 9.43454 19.4005 9.38594 19.381L5.87536 17.9768C4.57198 17.4554 3.58714 16.8996 2.92077 16.4674C2.58757 16.2513 2.33382 16.066 2.15946 15.9313C2.07227 15.8639 2.0049 15.8091 1.95733 15.7694C1.93355 15.7496 1.91471 15.7335 1.90082 15.7214L1.88369 15.7065L1.87791 15.7014L1.87571 15.6994L1.87437 15.6982C1.87417 15.698 1.87398 15.6979 2.5 15L1.87437 15.6982C1.48895 15.3525 1.4564 14.7594 1.80214 14.374C2.14719 13.9893 2.73844 13.9567 3.12391 14.3003M3.12566 14.3018C3.12566 14.3018 3.12566 14.3018 3.12566 14.3018V14.3018ZM3.1237 19.3001C2.73823 18.9565 2.14719 18.9893 1.80214 19.374L3.1237 19.3001ZM3.1237 19.3001L3.12827 19.3041C3.13377 19.3088 3.14403 19.3176 3.15903 19.3301C3.18904 19.3552 3.23802 19.3952 3.30598 19.4477C3.44192 19.5527 3.65361 19.7079 3.941 19.8943C4.51581 20.267 5.39274 20.7643 6.57172 21.2359L10.0823 22.6401C12.6133 23.6526 13.6745 24.0625 15 24.0625C16.3255 24.0625 17.3867 23.6526 19.9177 22.6401L23.4283 21.2359C24.6073 20.7643 25.4842 20.267 26.059 19.8943C26.3464 19.7079 26.5581 19.5527 26.694 19.4477C26.762 19.3952 26.811 19.3552 26.841 19.3301C26.856 19.3176 26.8662 19.3088 26.8717 19.3041L26.8743 19.3018C26.875 19.3012 26.8757 19.3006 26.8764 19.3C27.2618 18.9565 27.8528 18.9894 28.1979 19.374C28.5436 19.7594 28.5114 20.3521 28.126 20.6979L27.5208 20.0232C28.126 20.6979 28.1262 20.6977 28.126 20.6979L28.1243 20.6994L28.1221 20.7014L28.1163 20.7065L28.0992 20.7214C28.0853 20.7335 28.0665 20.7496 28.0427 20.7694C27.9951 20.8091 27.9277 20.8639 27.8405 20.9313C27.6662 21.066 27.4124 21.2513 27.0792 21.4674C26.4129 21.8995 25.428 22.4554 24.1246 22.9768L20.6141 24.381C20.5655 24.4005 20.5173 24.4198 20.4695 24.4389C18.1235 25.3776 16.724 25.9375 15 25.9375C13.276 25.9375 11.8765 25.3776 9.53053 24.4389C9.48273 24.4198 9.43454 24.4005 9.38594 24.381L5.87536 22.9768C4.57198 22.4554 3.58714 21.8995 2.92077 21.4674C2.58757 21.2513 2.33382 21.066 2.15946 20.9313C2.07227 20.8639 2.0049 20.8091 1.95733 20.7694C1.93355 20.7496 1.91471 20.7335 1.90082 20.7214L1.88369 20.7065L1.87791 20.7014L1.87571 20.6994L1.87437 20.6982C1.87417 20.698 1.87398 20.6979 2.5 20L1.87437 20.6982C1.48895 20.3525 1.4564 19.7594 1.80214 19.374" fill="#24E9FF" />
-            </svg>),
-            value: "06",
+            icon: <Layers size={30} />,
+            value: activeCases.toString().padStart(2, '0'),
             label: "Active Cases",
             color: "#24E9FF"
         },
         {
-            icon: (<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
-                <path d="M10.6666 8H28" stroke="#347BFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M10.6666 16H28" stroke="#347BFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M10.6666 24H28" stroke="#347BFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M4 8H4.01333" stroke="#347BFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M4 16H4.01333" stroke="#347BFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M4 24H4.01333" stroke="#347BFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>),
-            value: "62",
+            icon: <List size={30} />,
+            value: totalItems.toString(),
             label: "Total Items",
             color: "#347BFF"
         },
         {
-            icon: (<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
-                <g clipPath="url(#clip0_0_2852)">
-                    <path d="M16 1.33325V30.6666" stroke="#FF3063" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M22.6667 6.66675H12.6667C11.429 6.66675 10.242 7.15841 9.36684 8.03358C8.49167 8.90875 8 10.0957 8 11.3334C8 12.5711 8.49167 13.7581 9.36684 14.6332C10.242 15.5084 11.429 16.0001 12.6667 16.0001H19.3333C20.571 16.0001 21.758 16.4917 22.6332 17.3669C23.5083 18.2421 24 19.4291 24 20.6667C24 21.9044 23.5083 23.0914 22.6332 23.9666C21.758 24.8417 20.571 25.3334 19.3333 25.3334H8" stroke="#FF3063" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                </g>
-                <defs>
-                    <clipPath id="clip0_0_2852">
-                        <rect width="32" height="32" fill="white" />
-                    </clipPath>
-                </defs>
-            </svg>),
-            value: "$13324",
+            icon: <DollarSign size={30} />,
+            value: `$${totalValue.toFixed(2)}`,
             label: "Total Value",
             color: "#FF3063"
         },
-        {
-            icon: (<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
-                <g clipPath="url(#clip0_0_2960)">
-                    <path d="M30.336 12.6721L28.288 12.2881C28.032 11.5201 27.776 10.7521 27.264 9.98414L28.544 8.32014C28.928 7.80814 28.8 7.16814 28.416 6.65614L25.472 3.71214C25.088 3.32814 24.32 3.20014 23.808 3.58414L22.144 4.73614C21.376 4.35214 20.48 3.96814 19.584 3.71214L19.2 1.66414C19.072 1.02414 18.56 0.640137 17.92 0.640137H13.696C13.056 0.640137 12.544 1.15214 12.416 1.66414L12.16 3.71214C11.392 3.84014 10.496 4.22414 9.72801 4.73614L8.19201 3.58414C7.68001 3.20014 7.04001 3.20014 6.52801 3.71214L3.58401 6.65614C3.20001 7.04014 3.07201 7.80814 3.45601 8.32014L4.60801 9.85614C4.09601 10.6241 3.84001 11.5201 3.58401 12.4161L1.66401 12.6721C1.02401 12.8001 0.640015 13.3121 0.640015 13.9521V18.1761C0.640015 18.8161 1.15201 19.3281 1.66401 19.4561L3.58401 19.7121C3.84001 20.6081 4.22401 21.3761 4.60801 22.2721L3.58401 23.8081C3.20001 24.3201 3.20001 24.9601 3.71201 25.4721L6.65601 28.4161C7.04001 28.8001 7.80801 28.9281 8.32001 28.5441L9.85601 27.3921C10.624 27.7761 11.392 28.1601 12.16 28.4161L12.416 30.3361C12.544 30.9761 13.056 31.3601 13.696 31.3601H17.92C18.56 31.3601 19.072 30.8481 19.2 30.3361L19.456 28.4161C20.352 28.1601 21.12 27.7761 21.888 27.3921L23.552 28.5441C24.064 28.9281 24.832 28.8001 25.216 28.4161L28.16 25.4721C28.544 25.0881 28.672 24.3201 28.288 23.8081L27.136 22.1441C27.52 21.3761 27.904 20.6081 28.16 19.8401L30.208 19.4561C30.848 19.3281 31.232 18.8161 31.232 18.1761V13.9521C31.36 13.3121 30.848 12.8001 30.336 12.6721ZM23.424 22.0161C22.272 20.6081 20.864 19.5841 19.072 18.9441C18.816 18.8161 18.56 18.9441 18.432 18.9441C17.664 19.2001 16.896 19.4561 16.128 19.4561C15.36 19.4561 14.464 19.3281 13.824 18.9441C13.568 18.8161 13.312 18.8161 13.184 18.9441C11.392 19.5841 9.85601 20.6081 8.83202 22.0161C7.55201 20.3521 6.78401 18.3041 6.78401 16.1281C6.78401 10.8801 11.008 6.52814 16.384 6.52814C21.632 6.52814 25.856 10.7521 25.856 16.1281C25.472 18.3041 24.704 20.3521 23.424 22.0161Z" fill="#AB35FF" />
-                    <path d="M16 9.72803C13.824 9.72803 12.16 11.52 12.16 13.568C12.16 15.744 13.824 17.408 16 17.408C18.048 17.408 19.84 15.744 19.84 13.568C19.84 11.392 18.176 9.72803 16 9.72803Z" fill="#AB35FF" />
-                </g>
-                <defs>
-                    <clipPath id="clip0_0_2960">
-                        <rect width="32" height="32" fill="white" />
-                    </clipPath>
-                </defs>
-            </svg>),
-            value: "20 K+",
-            label: "Admins",
-            color: "#AB35FF"
-        },
+       
     ];
 
-    const card: CollectionItem[] = [
-        {
-            img: "/img/dashboard/cases-1.png",
-            price: 2.50,
-            items: 12,
+    // Transform API data to match CollectionItem type
+    const card: CollectionItem[] = crates.map((crate, index) => {
+        const colors = [
+            { color: '#FB8609', color2: '#4A3426' },
+            { color: '#347BFF', color2: '#203057' },
+            { color: '#ED164C', color2: '#451C33' },
+            { color: '#24E9FF', color2: '#1D4657' },
+            { color: '#702AEC', color2: '#2C2053' },
+        ];
+        const colorSet = colors[index % colors.length];
+
+        return {
+            id: crate.id,
+            img: crate.image,
+            price: parseFloat(crate.price),
+            items: (crate.items?.length || 0) + (crate.weapons?.length || 0),
             status: "Active",
-            color: '#FB8609',
-            color2: '#4A3426'
-        },
-        {
-            img: "/img/dashboard/cases-2.png",
-            price: 29.99,
-            items: 5,
-            status: "Active",
-            color: '#347BFF',
-            color2: '#203057'
-        },
-        {
-            img: "/img/dashboard/cases-3.png",
-            price: 29.99,
-            items: 5,
-            status: "Active",
-            color: '#ED164C',
-            color2: '#451C33'
-        },
-        {
-            img: "/img/dashboard/cases-4.png",
-            price: 29.99,
-            items: 5,
-            status: "Active",
-            color: '#24E9FF',
-            color2: '#1D4657'
-        },
-        {
-            img: "/img/dashboard/cases-5.png",
-            price: 29.99,
-            items: 5,
-            status: "Active",
-            color: '#702AEC',
-            color2: '#2C2053'
-        },
-        {
-            img: "/img/dashboard/cases-1.png",
-            price: 29.99,
-            items: 5,
-            status: "Active",
-            color: '#FB8609',
-            color2: '#4A3426'
-        },
-        {
-            img: "/img/dashboard/cases-2.png",
-            price: 29.99,
-            items: 5,
-            status: "Active",
-            color: '#347BFF',
-            color2: '#203057'
-        },
-        {
-            img: "/img/dashboard/cases-3.png",
-            price: 29.99,
-            items: 5,
-            status: "Active",
-            color: '#ED164C',
-            color2: '#451C33'
-        },
-        {
-            img: "/img/dashboard/cases-4.png",
-            price: 29.99,
-            items: 5,
-            status: "Active",
-            color: '#24E9FF',
-            color2: '#1D4657'
-        },
-        {
-            img: "/img/dashboard/cases-5.png",
-            price: 29.99,
-            items: 5,
-            status: "Active",
-            color: '#702AEC',
-            color2: '#2C2053'
-        },
-        {
-            img: "/img/dashboard/cases-1.png",
-            price: 29.99,
-            items: 5,
-            status: "Active",
-            color: '#FB8609',
-            color2: '#4A3426'
-        },
-        {
-            img: "/img/dashboard/cases-2.png",
-            price: 29.99,
-            items: 5,
-            status: "Active",
-            color: '#347BFF',
-            color2: '#203057'
-        },
-        {
-            img: "/img/dashboard/cases-3.png",
-            price: 29.99,
-            items: 5,
-            status: "Active",
-            color: '#ED164C',
-            color2: '#451C33'
-        },
-        {
-            img: "/img/dashboard/cases-4.png",
-            price: 29.99,
-            items: 5,
-            status: "Active",
-            color: '#24E9FF',
-            color2: '#1D4657'
-        },
-        {
-            img: "/img/dashboard/cases-5.png",
-            price: 29.99,
-            items: 5,
-            status: "Active",
-            color: '#702AEC',
-            color2: '#2C2053'
-        },
-    ]
+            color: colorSet.color,
+            color2: colorSet.color2,
+            onEdit: () => handleEdit(crate.id),
+            onDelete: () => handleDelete(crate.id),
+            onViewDetails: () => handleViewDetails(crate.id)
+        };
+    });
 
     return (
         <div>
@@ -206,16 +336,390 @@ export default function page({ }: Props) {
             </div>
             <div className="flex items-center justify-between mt-4 md:mt-5 xl:mt-6 mb-4">
                 <h3 className='text-white text-lg md:text-xl xl:text-2xl font-bold !leading-[130%]'>Manage Cases</h3>
-                <Link href={'/dashboard/weapons'} className='btn bg-none shadow-none bg-primary hover:bg-primary/50 hover:opacity-100 rounded-xl !border-t !border-white/25 border-0'>
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M6 1V11M11 6H1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
+                <button 
+                    onClick={handleOpenCreateModal}
+                    className='btn bg-none shadow-none bg-primary hover:bg-primary/50 hover:opacity-100 rounded-xl !border-t !border-white/25 border-0'
+                >
+                    <Plus size={16} />
                     Add Case
-                </Link>
+                </button>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 md:gap-4">
-                <CollectionCard items={card} />
-            </div>
+
+            {/* Loading State */}
+            {loading && (
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 md:gap-4">
+                    {[...Array(10)].map((_, i) => (
+                        <div key={i} className="bg-[#1A1D29] rounded-xl p-4 border border-white/10 animate-pulse">
+                            <div className="aspect-square bg-gray-700 rounded-lg mb-3"></div>
+                            <div className="h-4 bg-gray-700 rounded mb-2"></div>
+                            <div className="h-3 bg-gray-700 rounded w-2/3 mb-3"></div>
+                            <div className="flex gap-2">
+                                <div className="flex-1 h-8 bg-gray-700 rounded-lg"></div>
+                                <div className="flex-1 h-8 bg-gray-700 rounded-lg"></div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Error State */}
+            {error && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-4">
+                    <p className="text-red-400 font-medium">Error loading cases: {error}</p>
+                    <button
+                        onClick={fetchCrates}
+                        className="mt-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+                    >
+                        Retry
+                    </button>
+                </div>
+            )}
+
+
+{!loading && !error && (
+    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 md:gap-4">
+        {card.map((singleCard) => ( // Iterate over the 'card' array here in Page.tsx
+            <CollectionCard
+                key={singleCard.id} // Important for React list rendering
+                id={singleCard.id}
+                img={singleCard.img}
+                price={Number(singleCard.price) || 0}
+                items={Number(singleCard.items) || 0} // This is the count of items inside the case
+                status={singleCard.status ?? ''}
+                color={singleCard.color ?? ''}
+                color2={singleCard.color2 ?? ''}
+                onViewDetails={singleCard.onViewDetails} // Pass individual actions
+                onEdit={singleCard.onEdit}
+                onDelete={singleCard.onDelete}
+            />
+        ))}
+    </div>
+)}
+            {/* Create/Edit Modal */}
+            {showModal && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-[#1A1D29] rounded-xl border border-white/10 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                        <div className="flex items-center justify-between p-6 border-b border-white/10">
+                            <h2 className="text-xl font-bold text-white">
+                                {isEditMode ? 'Edit Case' : 'Create New Case'}
+                            </h2>
+                            <button 
+                                onClick={() => setShowModal(false)}
+                                className="text-gray-400 hover:text-white transition-colors"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+                        
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">Name *</label>
+                                <input
+                                    type="text"
+                                    name="name"
+                                    value={formData.name}
+                                    onChange={handleInputChange}
+                                    className="w-full bg-[#0D0F14] border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary"
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">Price *</label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    name="price"
+                                    value={formData.price}
+                                    onChange={handleInputChange}
+                                    className="w-full bg-[#0D0F14] border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary"
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">Image URL *</label>
+                                <input
+                                    type="url"
+                                    name="image"
+                                    value={formData.image}
+                                    onChange={handleInputChange}
+                                    className="w-full bg-[#0D0F14] border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary"
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">Type</label>
+                                <input
+                                    type="text"
+                                    name="type"
+                                    value={formData.type}
+                                    onChange={handleInputChange}
+                                    className="w-full bg-[#0D0F14] border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">Market Hash Name</label>
+                                <input
+                                    type="text"
+                                    name="market_hash_name"
+                                    value={formData.market_hash_name}
+                                    onChange={handleInputChange}
+                                    className="w-full bg-[#0D0F14] border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">First Sale Date</label>
+                                <input
+                                    type="date"
+                                    name="first_sale_date"
+                                    value={formData.first_sale_date}
+                                    onChange={handleInputChange}
+                                    className="w-full bg-[#0D0F14] border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">Model Player</label>
+                                <input
+                                    type="text"
+                                    name="model_player"
+                                    value={formData.model_player}
+                                    onChange={handleInputChange}
+                                    className="w-full bg-[#0D0F14] border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">Rental</label>
+                                <select
+                                    name="rental"
+                                    value={formData.rental.toString()}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, rental: e.target.value === 'true' }))}
+                                    className="w-full bg-[#0D0F14] border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary"
+                                >
+                                    <option value="true">Yes</option>
+                                    <option value="false">No</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">Description</label>
+                                <textarea
+                                    name="description"
+                                    value={formData.description || ''}
+                                    onChange={handleInputChange}
+                                    rows={3}
+                                    className="w-full bg-[#0D0F14] border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary resize-none"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 p-6 border-t border-white/10">
+                            <button
+                                onClick={() => setShowModal(false)}
+                                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white rounded-lg px-4 py-2 font-medium transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={isEditMode ? handleUpdate : handleCreate}
+                                className="flex-1 bg-primary hover:bg-primary/80 text-white rounded-lg px-4 py-2 font-medium transition-colors"
+                            >
+                                {isEditMode ? 'Update Case' : 'Create Case'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Details Modal */}
+            {showDetailsModal && viewingCrate && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-[#1A1D29] rounded-xl border border-white/10 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+                        <div className="flex items-center justify-between p-6 border-b border-white/10">
+                            <h2 className="text-xl font-bold text-white">Case Details</h2>
+                            <button 
+                                onClick={() => setShowDetailsModal(false)}
+                                className="text-gray-400 hover:text-white transition-colors"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+                        
+                        <div className="p-6 space-y-6">
+                            {viewingCrate.image && (
+                                <div className="flex justify-center mb-4">
+                                    <img src={viewingCrate.image} alt={viewingCrate.name} className="max-h-48 rounded-lg" />
+                                </div>
+                            )}
+                            
+                            {/* Basic Information */}
+                            <div>
+                                <h3 className="text-lg font-semibold text-white mb-3 border-b border-white/10 pb-2">Basic Information</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-sm text-gray-400">ID</label>
+                                        <p className="text-white font-medium">{viewingCrate.id}</p>
+                                    </div>
+                                    <div>
+                                        <label className="text-sm text-gray-400">Name</label>
+                                        <p className="text-white font-medium">{viewingCrate.name}</p>
+                                    </div>
+                                    <div>
+                                        <label className="text-sm text-gray-400">Price</label>
+                                        <p className="text-white font-medium">${viewingCrate.price}</p>
+                                    </div>
+                                    <div>
+                                        <label className="text-sm text-gray-400">Type</label>
+                                        <p className="text-white font-medium">{viewingCrate.type}</p>
+                                    </div>
+                                    <div>
+                                        <label className="text-sm text-gray-400">First Sale Date</label>
+                                        <p className="text-white font-medium">{viewingCrate.first_sale_date || 'N/A'}</p>
+                                    </div>
+                                    <div>
+                                        <label className="text-sm text-gray-400">Rental</label>
+                                        <p className="text-white font-medium">{viewingCrate.rental ? 'Yes' : 'No'}</p>
+                                    </div>
+                                    <div className="col-span-2">
+                                        <label className="text-sm text-gray-400">Market Hash Name</label>
+                                        <p className="text-white font-medium">{viewingCrate.market_hash_name || 'N/A'}</p>
+                                    </div>
+                                    <div className="col-span-2">
+                                        <label className="text-sm text-gray-400">Model Player</label>
+                                        <p className="text-white font-medium break-all text-sm">{viewingCrate.model_player || 'N/A'}</p>
+                                    </div>
+                                    {viewingCrate.description && (
+                                        <div className="col-span-2">
+                                            <label className="text-sm text-gray-400">Description</label>
+                                            <p className="text-white font-medium">{viewingCrate.description}</p>
+                                        </div>
+                                    )}
+                                    <div>
+                                        <label className="text-sm text-gray-400">Created At</label>
+                                        <p className="text-white font-medium text-sm">{new Date(viewingCrate.created_at).toLocaleString()}</p>
+                                    </div>
+                                    <div>
+                                        <label className="text-sm text-gray-400">Updated At</label>
+                                        <p className="text-white font-medium text-sm">{new Date(viewingCrate.updated_at).toLocaleString()}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Loot Information */}
+                            {(viewingCrate.loot_name || viewingCrate.loot_footer || viewingCrate.loot_image) && (
+                                <div>
+                                    <h3 className="text-lg font-semibold text-white mb-3 border-b border-white/10 pb-2">Loot Information</h3>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        {viewingCrate.loot_name && (
+                                            <div>
+                                                <label className="text-sm text-gray-400">Loot Name</label>
+                                                <p className="text-white font-medium">{viewingCrate.loot_name}</p>
+                                            </div>
+                                        )}
+                                        {viewingCrate.loot_footer && (
+                                            <div>
+                                                <label className="text-sm text-gray-400">Loot Footer</label>
+                                                <p className="text-white font-medium">{viewingCrate.loot_footer}</p>
+                                            </div>
+                                        )}
+                                        {viewingCrate.loot_image && (
+                                            <div className="col-span-2">
+                                                <label className="text-sm text-gray-400">Loot Image</label>
+                                                <img src={viewingCrate.loot_image} alt="Loot" className="mt-2 max-h-32 rounded-lg" />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Items/Weapons */}
+                            {(viewingCrate.items?.length > 0 || viewingCrate.weapons?.length > 0) && (
+                                <div>
+                                    <h3 className="text-lg font-semibold text-white mb-3 border-b border-white/10 pb-2">
+                                        Items & Weapons ({(viewingCrate.items?.length || 0) + (viewingCrate.weapons?.length || 0)})
+                                    </h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {[...(viewingCrate.items || []), ...(viewingCrate.weapons || [])].map((item: any) => (
+                                            <div key={item.id} className="bg-[#0D0F14] border border-white/10 rounded-lg p-3 flex items-center gap-3">
+                                                {item.image && (
+                                                    <img src={item.image} alt={item.name} className="w-16 h-16 object-contain rounded" />
+                                                )}
+                                                <div className="flex-1">
+                                                    <p className="text-white font-medium text-sm">{item.name}</p>
+                                                    <p className="text-gray-400 text-xs">{item.id}</p>
+                                                    {item.price && (
+                                                        <p className="text-primary font-semibold text-sm mt-1">${item.price}</p>
+                                                    )}
+                                                    {item.rarity && (
+                                                        <p className="text-gray-400 text-xs">Rarity: {item.rarity}</p>
+                                                    )}
+                                                    {item.probability && (
+                                                        <p className="text-gray-400 text-xs">Probability: {item.probability}%</p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Skins */}
+                            {viewingCrate.skins?.length > 0 && (
+                                <div>
+                                    <h3 className="text-lg font-semibold text-white mb-3 border-b border-white/10 pb-2">
+                                        Skins ({viewingCrate.skins.length})
+                                    </h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {viewingCrate.skins.map((skin: any) => (
+                                            <div key={skin.id} className="bg-[#0D0F14] border border-white/10 rounded-lg p-3 flex items-center gap-3">
+                                                {skin.image && (
+                                                    <img src={skin.image} alt={skin.name} className="w-16 h-16 object-contain rounded" />
+                                                )}
+                                                <div className="flex-1">
+                                                    <p className="text-white font-medium text-sm">{skin.name}</p>
+                                                    {skin.price && (
+                                                        <p className="text-primary font-semibold text-sm mt-1">${skin.price}</p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Keys */}
+                            {viewingCrate.keys?.length > 0 && (
+                                <div>
+                                    <h3 className="text-lg font-semibold text-white mb-3 border-b border-white/10 pb-2">
+                                        Keys ({viewingCrate.keys.length})
+                                    </h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {viewingCrate.keys.map((key: any) => (
+                                            <div key={key.id} className="bg-[#0D0F14] border border-white/10 rounded-lg p-3">
+                                                <p className="text-white font-medium text-sm">{key.name}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex gap-3 p-6 border-t border-white/10">
+                            <button
+                                onClick={() => setShowDetailsModal(false)}
+                                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white rounded-lg px-4 py-2 font-medium transition-colors"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
