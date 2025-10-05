@@ -1,6 +1,6 @@
 "use client"
 
-import React, { JSX, useState } from 'react'
+import React, { JSX, useState, useEffect } from 'react'
 import PageContainer from '@/app/components/PageContainer'
 import { CaseItem, StremItem } from '@/app/utilities/Types';
 import BuyCard from '@/app/components/cases/BuyCard';
@@ -18,81 +18,62 @@ interface SpinIconItem {
     textColor: string | null;
 }
 
-type Props = {}
+interface CrateItem {
+    id: string;
+    name: string;
+    description: string;
+    image: string;
+    rarity: string | null;
+    price: string;
+    probability: number | null;
+}
 
-export default function page({ }: Props) {
-    const caseItems: CaseItem[] = [
-        {
-            img: '/img/cases/1.png',
-            price: '$2.50',
-            des: 'Spectrum Case',
-            color: '#39FF67',
-            btn: 'Uncommon',
-        },
-        {
-            img: '/img/cases/2.png',
-            price: '$2.50',
-            des: 'Spectrum Case',
-            color: '#FFD700',
-            btn: 'Common',
-        },
-        {
-            img: '/img/cases/3.png',
-            price: '$2.50',
-            des: 'Spectrum Case',
-            color: '#4FC8FF',
-            btn: 'Uncommon',
-        },
-        {
-            img: '/img/cases/4.png',
-            price: '$2.50',
-            des: 'Spectrum Case',
-            color: '#C324E7',
-            btn: 'Common',
-        },
-        {
-            img: '/img/cases/5.png',
-            price: '$2.50',
-            des: 'Spectrum Case',
-            color: '#E94444',
-            btn: 'Uncommon',
-        },
-        {
-            img: '/img/cases/6.png',
-            price: '$2.50',
-            des: 'Spectrum Case',
-            color: '#FF8809',
-            btn: 'Common',
-        },
-        {
-            img: '/img/cases/7.png',
-            price: '$2.50',
-            des: 'Spectrum Case',
-            color: '#347BFF',
-            btn: 'Uncommon',
-        },
-        {
-            img: '/img/cases/8.png',
-            price: '$2.50',
-            des: 'Spectrum Case',
-            color: '#ED164C',
-            btn: 'Common',
-        },
-        {
-            img: '/img/cases/9.png',
-            price: '$2.50',
-            des: 'Spectrum Case',
-            color: '#24E9FF',
-            btn: 'Uncommon',
-        },
-        {
-            img: '/img/cases/10.png',
-            price: '$2.50',
-            des: 'Spectrum Case',
-            color: '#702AEC',
-            btn: 'Common',
-        },
-    ]
+interface CrateData {
+    id: string;
+    name: string;
+    image: string;
+    price: string;
+    description: string | null;
+    items: CrateItem[];
+    rarity: {
+        name: string;
+        color: string;
+    } | null;
+}
+
+type Props = {
+    crateId?: string;
+}
+
+export default function Page({ crateId = 'crate-8905' }: Props) {
+    const [crateData, setCrateData] = useState<CrateData | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'YOUR_BASE_URL_HERE';
+
+    useEffect(() => {
+        const fetchCrateData = async () => {
+            try {
+                setLoading(true);
+                const response = await fetch(`${BASE_URL}/api/case/${crateId}`);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch crate data');
+                }
+                
+                const data = await response.json();
+                setCrateData(data.crate);
+            } catch (err) {
+                setError(err instanceof Error ? err.message : 'An error occurred');
+                console.error('Error fetching crate data:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchCrateData();
+    }, [crateId, BASE_URL]);
 
     const incrementCout: IncreamentCoutItem[] = [
         {
@@ -110,90 +91,37 @@ export default function page({ }: Props) {
     ]
     const [activeIncrementCount, setActiveIncrementCount] = useState(1)
 
-    const steamItems: StremItem[] = [
-        {
-            img: "/img/wallet/img-3.png",
-            price: '$25.700',
-            name: "SSG 08 | Turbo Peek",
-            color: '#236DFF',
-            color2: '#1D2E58'
-        },
-        {
-            img: "/img/wallet/img_4.png",
-            price: '$25.700',
-            name: "SSG 08 | Turbo Peek",
-            color: '#C324E7',
-            color2: '#3E1F53'
-        },
-        {
-            img: "/img/wallet/img_5.png",
-            price: '$25.700',
-            name: "SSG 08 | Turbo Peek",
-            color: '#FF8809',
-            color2: '#4A3426'
-        },
-        {
-            img: "/img/wallet/img-3.png",
-            price: '$25.700',
-            name: "SSG 08 | Turbo Peek",
-            color: '#236DFF',
-            color2: '#1D2E58'
-        }, {
-            img: "/img/wallet/img-3.png",
-            price: '$25.700',
-            name: "SSG 08 | Turbo Peek",
-            color: '#236DFF',
-            color2: '#1D2E58'
-        },
-        {
-            img: "/img/wallet/img_4.png",
-            price: '$25.700',
-            name: "SSG 08 | Turbo Peek",
-            color: '#C324E7',
-            color2: '#3E1F53'
-        },
-        {
-            img: "/img/wallet/img_5.png",
-            price: '$25.700',
-            name: "SSG 08 | Turbo Peek",
-            color: '#FF8809',
-            color2: '#4A3426'
-        },
-        {
-            img: "/img/wallet/img-3.png",
-            price: '$25.700',
-            name: "SSG 08 | Turbo Peek",
-            color: '#236DFF',
-            color2: '#1D2E58'
-        }, {
-            img: "/img/wallet/img-3.png",
-            price: '$25.700',
-            name: "SSG 08 | Turbo Peek",
-            color: '#236DFF',
-            color2: '#1D2E58'
-        },
-        {
-            img: "/img/wallet/img_4.png",
-            price: '$25.700',
-            name: "SSG 08 | Turbo Peek",
-            color: '#C324E7',
-            color2: '#3E1F53'
-        },
-        {
-            img: "/img/wallet/img_5.png",
-            price: '$25.700',
-            name: "SSG 08 | Turbo Peek",
-            color: '#FF8809',
-            color2: '#4A3426'
-        },
-        {
-            img: "/img/wallet/img-3.png",
-            price: '$25.700',
-            name: "SSG 08 | Turbo Peek",
-            color: '#236DFF',
-            color2: '#1D2E58'
-        },
-    ]
+    // Helper function to map rarity to color
+    function getRarityColor(rarity: string): string {
+        const rarityColors: { [key: string]: string } = {
+            'Common': '#BFC0D8',
+            'Uncommon': '#39FF67',
+            'Rare': '#4FC8FF',
+            'Epic': '#C324E7',
+            'Legendary': '#FFD700',
+        }
+        return rarityColors[rarity] || '#236DFF'
+    }
+
+    function getRarityColor2(rarity: string): string {
+        const rarityColors: { [key: string]: string } = {
+            'Common': '#3E3F4F',
+            'Uncommon': '#1D5830',
+            'Rare': '#1D2E58',
+            'Epic': '#3E1F53',
+            'Legendary': '#4A3B26',
+        }
+        return rarityColors[rarity] || '#1D2E58'
+    }
+
+    // Convert API items to StremItem format for spinning animation
+    const steamItems: StremItem[] = crateData?.items.map(item => ({
+        img: item.image,
+        price: `$${parseFloat(item.price).toFixed(3)}`,
+        name: item.name,
+        color: item.rarity ? getRarityColor(item.rarity) : '#236DFF',
+        color2: item.rarity ? getRarityColor2(item.rarity) : '#1D2E58'
+    })) || []
 
     const spinIcons: SpinIconItem[] = [
         {
@@ -252,17 +180,55 @@ export default function page({ }: Props) {
         }, 3000)
     }
 
+    // Convert API items to CaseItem format for collection display
+    const caseItems: CaseItem[] = crateData?.items.map(item => ({
+        img: item.image,
+        price: `$${parseFloat(item.price).toFixed(2)}`,
+        des: item.name,
+        color: item.rarity ? getRarityColor(item.rarity) : '#236DFF',
+        btn: item.rarity || 'Common',
+    })) || []
+
+    if (loading) {
+        return (
+            <PageContainer>
+                <div className="flex items-center justify-center min-h-96">
+                    <p className="text-white text-xl">Loading...</p>
+                </div>
+            </PageContainer>
+        )
+    }
+
+    if (error) {
+        return (
+            <PageContainer>
+                <div className="flex items-center justify-center min-h-96">
+                    <p className="text-red-500 text-xl">Error: {error}</p>
+                </div>
+            </PageContainer>
+        )
+    }
+
+    if (!crateData) {
+        return (
+            <PageContainer>
+                <div className="flex items-center justify-center min-h-96">
+                    <p className="text-white text-xl">No data available</p>
+                </div>
+            </PageContainer>
+        )
+    }
 
     return (
         <PageContainer>
             <div className="relative z-1 overflow-hidden flex flex-col gap-y-2.5 py-6 bg-[#C4CEFF]/6 rounded-[20px] mb-5">
                 {Array.from({ length: activeIncrementCount }).map((_, index) => (
                     <motion.div className="flex gap-3 relative -z-10" animate={controls} key={index}>
-                        {steamItems.map((item, index) => (
-                            <Card className="min-w-45" key={`first-${index}`} item={item} />
+                        {steamItems.map((item, idx) => (
+                            <Card className="min-w-45" key={`first-${idx}`} item={item} />
                         ))}
-                        {steamItems.map((item, index) => (
-                            <Card className="min-w-45" key={`second-${index}`} item={item} />
+                        {steamItems.map((item, idx) => (
+                            <Card className="min-w-45" key={`second-${idx}`} item={item} />
                         ))}
                     </motion.div>
                 ))}
@@ -298,7 +264,6 @@ export default function page({ }: Props) {
                             </filter>
                         </defs>
                     </svg>
-
                 </span>
             </div>
 
@@ -307,13 +272,15 @@ export default function page({ }: Props) {
                     {spinIcons.map((item, index) => {
                         const isActive = selectedSpins.includes(index)
                         return (
-                            <button key={index} onClick={() => {
-                                setSelectedSpins(prev =>
-                                    prev.includes(index)
-                                        ? prev.filter(i => i !== index)
-                                        : [...prev, index]
-                                )
-                            }}
+                            <button 
+                                key={index} 
+                                onClick={() => {
+                                    setSelectedSpins(prev =>
+                                        prev.includes(index)
+                                            ? prev.filter(i => i !== index)
+                                            : [...prev, index]
+                                    )
+                                }}
                                 className={`size-11 flex items-center justify-center bg-[var(--bg-color)]/10 text-[var(--text-color)] rounded-full border border-solid ${isActive ? 'border-[var(--bg-color)]' : 'border-transparent'}`}
                                 style={{ '--bg-color': item.bgColor, '--text-color': item.textColor || item.bgColor } as React.CSSProperties}
                             >
@@ -322,12 +289,13 @@ export default function page({ }: Props) {
                         )
                     })}
                 </div>
-                <button onClick={handleRandome} disabled={spinning} className="w-max gradient-border-two rounded-full flex items-center text-white text-sm font-bold min-h-11 shadow-[0_2px_8px_0_rgba(59,188,254,0.32)]">
-                    <span className='block px-5'>Open for $4.99</span>
-                </button>
+
                 <div className="flex items-center gap-3">
                     {incrementCout.map((item, index) => (
-                        <button onClick={() => setActiveIncrementCount(item.count)} key={index} className='flex items-center justify-center rounded-full hover:scale-105 text-base text-white uppercase min-w-12 min-h-9 p-px text-shadow-[0_4p_ 4px_rgba(15,16,44,0.12)]'
+                        <button 
+                            onClick={() => setActiveIncrementCount(item.count)} 
+                            key={index} 
+                            className='flex items-center justify-center rounded-full hover:scale-105 text-base text-white uppercase min-w-12 min-h-9 p-px text-shadow-[0_4p_ 4px_rgba(15,16,44,0.12)]'
                             style={{
                                 border: "double 1px transparent",
                                 backgroundImage: `${item.color}, linear-gradient(180deg,rgba(255, 255, 255, .2) 0%, rgba(255, 255, 255, 0.2) 100%)`,
@@ -340,16 +308,23 @@ export default function page({ }: Props) {
                     ))}
                 </div>
 
+                <button 
+                    onClick={handleRandome} 
+                    disabled={spinning} 
+                    className="w-max gradient-border-two rounded-full flex items-center text-white text-sm font-bold min-h-11 shadow-[0_2px_8px_0_rgba(59,188,254,0.32)]"
+                >
+                    <span className='block px-5'>Open for ${crateData.price}</span>
+                </button>
             </div>
 
             <div className="flex flex-col gap-y-5 mt-6">
-                <h4 className='text-2xl'>Collection Items</h4>
+                <h4 className='text-2xl'>{crateData.name} - Collection Items</h4>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                     {caseItems.map((item, index) => (
-                        <BuyCard item={item} key={index} path={`/case/${index + 1}`} />
+                        <BuyCard item={item} key={index} path={`/case/${crateData.id}`} />
                     ))}
                 </div>
             </div>
-        </PageContainer >
+        </PageContainer>
     )
 }

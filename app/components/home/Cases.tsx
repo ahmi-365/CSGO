@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import Link from 'next/link';
 import BuyCard from '@/app/components/cases/BuyCard';
 import { CaseItem } from '@/app/utilities/Types';
@@ -7,76 +7,69 @@ import { JSX } from 'react';
 type Props = {
     loginAuth?: boolean;
 }
+
 interface SocialItem {
     icon?: JSX.Element | string;
     path?: string;
 }
 
+interface ApiCrate {
+    id: string;
+    name: string;
+    image: string;
+    price: string;
+    rarity?: {
+        color: string;
+    } | null;
+}
+
+const randomColors = [
+    '#39FF67', '#FFD700', '#4FC8FF', '#C324E7', '#E94444', 
+    '#FF8809', '#347BFF', '#ED164C', '#24E9FF', '#702AEC'
+];
+
+const getRandomColor = () => {
+    return randomColors[Math.floor(Math.random() * randomColors.length)];
+};
 
 export default function Cases({ loginAuth = true }: Props) {
+    const [caseItems, setCaseItems] = useState<CaseItem[]>([]);
+    const [featuredCase, setFeaturedCase] = useState<CaseItem | null>(null);
+    const [loading, setLoading] = useState(true);
+    const base_url = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-    const caseItems: CaseItem[] = [
-        {
-            img: '/img/cases/1.png',
-            price: '$2.50',
-            des: 'Spectrum Case',
-            color: '#39FF67',
-        },
-        {
-            img: '/img/cases/2.png',
-            price: '$2.50',
-            des: 'Spectrum Case',
-            color: '#FFD700',
-        },
-        {
-            img: '/img/cases/3.png',
-            price: '$2.50',
-            des: 'Spectrum Case',
-            color: '#4FC8FF',
-        },
-        {
-            img: '/img/cases/4.png',
-            price: '$2.50',
-            des: 'Spectrum Case',
-            color: '#C324E7',
-        },
-        {
-            img: '/img/cases/5.png',
-            price: '$2.50',
-            des: 'Spectrum Case',
-            color: '#E94444',
-        },
-        {
-            img: '/img/cases/6.png',
-            price: '$2.50',
-            des: 'Spectrum Case',
-            color: '#FF8809',
-        },
-        {
-            img: '/img/cases/7.png',
-            price: '$2.50',
-            des: 'Spectrum Case',
-            color: '#347BFF',
-        },
-        {
-            img: '/img/cases/8.png',
-            price: '$2.50',
-            des: 'Spectrum Case',
-            color: '#ED164C',
-        },
-        {
-            img: '/img/cases/9.png',
-            price: '$2.50',
-            des: 'Spectrum Case',
-            color: '#24E9FF',
-        },
-        {
-            img: '/img/cases/10.png',
-            price: '$2.50',
-            des: 'Spectrum Case',
-            color: '#702AEC',
-        },
-    ]
+    useEffect(() => {
+        const fetchCases = async () => {
+            try {
+                const response = await fetch(`${base_url}/api/cases`);
+                const data = await response.json();
+                
+                // Transform API data to match CaseItem type
+                const transformedCases: CaseItem[] = data.crates.data.map((crate: ApiCrate) => ({
+                    img: crate.image,
+                    price: `$${crate.price}`,
+                    des: crate.name,
+                    color: crate.rarity?.color || getRandomColor(),
+                }));
+                
+                setCaseItems(transformedCases);
+                
+                // Select a random case for the featured section
+                if (transformedCases.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * transformedCases.length);
+                    setFeaturedCase(transformedCases[randomIndex]);
+                }
+            } catch (error) {
+                console.error('Error fetching cases:', error);
+                setCaseItems([]);
+                setFeaturedCase(null);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchCases();
+    }, []);
 
     const social: SocialItem[] = [
         {
@@ -120,6 +113,11 @@ export default function Cases({ loginAuth = true }: Props) {
         },
     ]
 
+    // Generate the path for the featured case
+    const featuredCasePath = featuredCase 
+        ? `/case/${featuredCase.des.toLowerCase().replace(/\s+/g, '-')}`
+        : '/login';
+
     return (
         <>
             <div className="bg-[#1C1E2D] border border-solid border-white/10 rounded-3xl p-8 md:p-12 lg:py-13 lg:px-18 relative z-1 overflow-hidden">
@@ -129,11 +127,28 @@ export default function Cases({ loginAuth = true }: Props) {
                 {loginAuth ?
                     <>
                         <div className="max-w-133 text-center md:text-start">
-                            <img src="/img/home/img_1.png" className='absolute hidden md:block bottom-0 right-0 md:max-w-80 lg:max-w-100 -z-1' alt="" />
-                            <h1 className='text-[28px] md:text-3xl lg:text-4xl mb-4 !leading-[130%]'>Our Best-Selling Case</h1>
-                            <p className='text-base !leading-normal mb-6'>Right now, around the globe, from busy cities to quiet towns, people are aligning with what truly matters. Not because it’s trendy, but because it works. The question is—will you join them?</p>
+                            {loading ? (
+                                <div className="absolute hidden md:block bottom-0 right-0 md:max-w-80 lg:max-w-100 -z-1 animate-pulse bg-white/10 rounded-lg w-80 h-80"></div>
+                            ) : featuredCase ? (
+                                <img 
+                                    src={featuredCase.img} 
+                                    className='absolute hidden md:block bottom-0 right-0 md:max-w-80 lg:max-w-100 -z-1' 
+                                    alt={featuredCase.des} 
+                                />
+                            ) : (
+                                <img src="/img/home/img_1.png" className='absolute hidden md:block bottom-0 right-0 md:max-w-80 lg:max-w-100 -z-1' alt="" />
+                            )}
+                            <h1 className='text-[28px] md:text-3xl lg:text-4xl mb-4 !leading-[130%]'>
+                                {loading ? 'Loading...' : featuredCase ? featuredCase.des : 'Our Best-Selling Case'}
+                            </h1>
+                            <p className='text-base !leading-normal mb-6'>
+                                {loading ? 'Fetching our best cases...' : featuredCase ? `Get this amazing case for just ${featuredCase.price}! Right now, around the globe, from busy cities to quiet towns, people are aligning with what truly matters.` : 'Right now, around the globe, from busy cities to quiet towns, people are aligning with what truly matters. Not because it\'s trendy, but because it works. The question is—will you join them?'}
+                            </p>
                             <div className="flex items-center justify-center md:justify-start gap-4 md:gap-6">
-                                <Link href='/login' className='grow md:grow-0 min-w-45 gradient-border-two rounded-full p-px overflow-hidden shadow-[0_4px_8px_0_rgba(59,188,254,0.32)] text-sm md:text-base min-h-13 flex items-center justify-center text-white font-bold'>
+                                <Link 
+                                    href={featuredCasePath}
+                                    className='grow md:grow-0 min-w-45 gradient-border-two rounded-full p-px overflow-hidden shadow-[0_4px_8px_0_rgba(59,188,254,0.32)] text-sm md:text-base min-h-13 flex items-center justify-center text-white font-bold'
+                                >
                                     <span className='px-5'>
                                         Buy Now
                                     </span>
@@ -144,11 +159,28 @@ export default function Cases({ loginAuth = true }: Props) {
                     :
                     <>
                         <div className="max-w-110 text-center md:text-start">
-                            <img src="/img/home/img_2.png" className='absolute hidden md:block md:bottom-0 xl:-bottom-18 right-0 xl:-right-13 md:max-w-90 lg:max-w-110 xl:max-w-148 -z-1' alt="" />
-                            <h1 className='text-[28px] md:text-3xl lg:text-4xl mb-4 !leading-[130%]'>Don’t Miss Out on Our Best-Selling Case</h1>
-                            <p className='text-base !leading-normal max-w-85 mb-6'>The #1 Pick Everyone’s Buying Right Now for Unmatched Value</p>
+                            {loading ? (
+                                <div className="absolute hidden md:block md:bottom-0 xl:-bottom-18 right-0 xl:-right-13 md:max-w-90 lg:max-w-110 xl:max-w-148 -z-1 animate-pulse bg-white/10 rounded-lg w-90 h-90"></div>
+                            ) : featuredCase ? (
+                                <img 
+                                    src={featuredCase.img} 
+                                    className='absolute hidden md:block md:bottom-0 xl:-bottom-18 right-0 xl:-right-13 md:max-w-90 lg:max-w-110 xl:max-w-148 -z-1' 
+                                    alt={featuredCase.des} 
+                                />
+                            ) : (
+                                <img src="/img/home/img_2.png" className='absolute hidden md:block md:bottom-0 xl:-bottom-18 right-0 xl:-right-13 md:max-w-90 lg:max-w-110 xl:max-w-148 -z-1' alt="" />
+                            )}
+                            <h1 className='text-[28px] md:text-3xl lg:text-4xl mb-4 !leading-[130%]'>
+                                {loading ? 'Loading...' : featuredCase ? `Don't Miss Out on ${featuredCase.des}` : 'Don\'t Miss Out on Our Best-Selling Case'}
+                            </h1>
+                            <p className='text-base !leading-normal max-w-85 mb-6'>
+                                {loading ? 'Fetching our best cases...' : featuredCase ? `${featuredCase.price} - The #1 Pick Everyone's Buying Right Now for Unmatched Value` : 'The #1 Pick Everyone\'s Buying Right Now for Unmatched Value'}
+                            </p>
                             <div className="flex flex-wrap flex-col-reverse md:flex-row w-full gap-4">
-                                <Link href='/login' className='grow md:grow-0 gradient-border-two rounded-full p-px overflow-hidden shadow-[0_4px_8px_0_rgba(59,188,254,0.32)] text-sm md:text-base min-h-13 flex items-center justify-center text-white font-bold'>
+                                <Link 
+                                    href={featuredCasePath}
+                                    className='grow md:grow-0 gradient-border-two rounded-full p-px overflow-hidden shadow-[0_4px_8px_0_rgba(59,188,254,0.32)] text-sm md:text-base min-h-13 flex items-center justify-center text-white font-bold'
+                                >
                                     <span className='px-5'>
                                         Get Started - Right Now
                                     </span>
@@ -166,9 +198,19 @@ export default function Cases({ loginAuth = true }: Props) {
             <div className="flex flex-col gap-y-5 mt-6 md:mt-8">
                 <h4 className='text-2xl'>Regular Cases</h4>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4 pb-8 mb:pb-10">
-                    {caseItems.map((item, index) => (
-                        <BuyCard item={item} key={index} path={`/case/${index + 1}`} />
-                    ))}
+                    {loading ? (
+                        [...Array(10)].map((_, index) => (
+                            <div key={index} className="animate-pulse bg-[#1C1E2D]/50 border border-white/10 rounded-2xl h-64"></div>
+                        ))
+                    ) : caseItems.length > 0 ? (
+                        caseItems.map((item, index) => (
+                            <BuyCard item={item} key={index} path={`/case/${item.des.toLowerCase().replace(/\s+/g, '-')}`} />
+                        ))
+                    ) : (
+                        <div className="col-span-full text-center py-12 text-gray-400">
+                            No cases available at the moment.
+                        </div>
+                    )}
                 </div>
             </div>
         </>

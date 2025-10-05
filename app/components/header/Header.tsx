@@ -275,7 +275,7 @@ export default function Header({ }: Props) {
             </div>
             {pathname.includes('/dashboard/') &&
               <Suspense fallback={'Loading btn...'}>
-                <Humberge />x
+                <Humberge />
               </Suspense>
             }
           </div>

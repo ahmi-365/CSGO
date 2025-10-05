@@ -5,7 +5,7 @@ import CollectionCard from '@/app/components/dashboard/CollectionCard';
 import InfoCard from '@/app/components/dashboard/InfoCard';
 import { CollectionItem, caseInfoItem } from '@/app/utilities/Types';
 import Link from 'next/link';
-import { Layers, List, DollarSign, Settings, Plus, X, Weapon, Edit, Trash2 } from 'lucide-react'; // Added Weapon, Edit, Trash2 icons
+import { Layers, List, DollarSign, Settings, Plus, X,  Edit, Trash2 } from 'lucide-react'; // Added Weapon, Edit, Trash2 icons
 
 type Props = {}
 
@@ -22,6 +22,7 @@ interface CrateFormData {
     loot_name: string | null;
     loot_footer: string | null;
     loot_image: string | null;
+    rarity_id: string;
 }
 
 // New interfaces for weapon management
@@ -53,6 +54,7 @@ export default function Page({ }: Props) {
     const [editingCrate, setEditingCrate] = useState<any>(null);
     const [viewingCrate, setViewingCrate] = useState<any>(null);
     const [isEditMode, setIsEditMode] = useState(false);
+    const [rarities, setRarities] = useState<any[]>([]);
     const [formData, setFormData] = useState<CrateFormData>({
         name: '',
         price: '',
@@ -65,7 +67,8 @@ export default function Page({ }: Props) {
         model_player: '',
         loot_name: null,
         loot_footer: null,
-        loot_image: null
+        loot_image: null,
+        rarity_id: ''
     });
 
     const [availableWeapons, setAvailableWeapons] = useState<WeaponItem[]>([]); // All available weapons
@@ -118,7 +121,23 @@ const [selectedWeaponsToUnassign, setSelectedWeaponsToUnassign] = useState<strin
             setLoading(false);
         }
     };
+// Fetch rarities data
+const fetchRarities = async () => {
+    try {
+        const response = await fetch(`${baseUrl}/api/admin/rarities`, {
+            headers: getHeaders()
+        });
 
+        if (!response.ok) {
+            throw new Error('Failed to fetch rarities');
+        }
+
+        const data = await response.json();
+        setRarities(data.data || []);
+    } catch (err) {
+        console.error('Error fetching rarities:', err);
+    }
+};
     // Fetch single crate details
     const fetchCrateDetails = async (crateId: string) => {
         try {
@@ -344,7 +363,9 @@ const handleUnassignWeapons = async () => {
                 model_player: crateDetails.model_player || '',
                 loot_name: crateDetails.loot_name || null,
                 loot_footer: crateDetails.loot_footer || null,
-                loot_image: crateDetails.loot_image || null
+                loot_image: crateDetails.loot_image || null,
+                            rarity_id: crateDetails.rarity_id || '' // Add this line
+
             });
             setIsEditMode(true);
             setShowModal(true);
@@ -391,7 +412,8 @@ const handleManageWeapons = async (crateId: string) => {
             model_player: '',
             loot_name: null,
             loot_footer: null,
-            loot_image: null
+            loot_image: null,
+            rarity_id: ''
         });
     };
 
@@ -416,7 +438,8 @@ const handleManageWeapons = async (crateId: string) => {
 
     useEffect(() => {
         fetchCrates();
-        fetchAvailableWeapons(); // Fetch available weapons on initial load
+        fetchAvailableWeapons(); 
+        fetchRarities();
     }, []);
 
     // Calculate stats
@@ -650,6 +673,37 @@ const weaponCount = crate.weapons?.length || 0;
                                     className="w-full bg-[#0D0F14] border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary"
                                 />
                             </div>
+
+
+{/* NEW RARITY FIELD - ADD THIS */}
+<div>
+    <label className="block text-sm font-medium text-gray-300 mb-2">Rarity *</label>
+    <select
+        name="rarity_id"
+        value={formData.rarity_id}
+        onChange={handleInputChange}
+        className="w-full bg-[#0D0F14] border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary"
+        required
+    >
+        <option value="">Select Rarity</option>
+        {rarities.map((rarity) => (
+            <option key={rarity.id} value={rarity.id}>
+                {rarity.name}
+            </option>
+        ))}
+    </select>
+    {formData.rarity_id && (
+        <div className="mt-2 flex items-center gap-2">
+            <div 
+                className="w-6 h-6 rounded border border-white/20" 
+                style={{ backgroundColor: rarities.find(r => r.id === formData.rarity_id)?.color }}
+            />
+            <span className="text-sm text-gray-400">
+                {rarities.find(r => r.id === formData.rarity_id)?.name}
+            </span>
+        </div>
+    )}
+</div>
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-2">Rental</label>
