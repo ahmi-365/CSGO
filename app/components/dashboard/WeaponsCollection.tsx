@@ -18,6 +18,7 @@ type Props = {
   className?: string;
   item?: CardData;
   onDelete?: (id: string) => void;
+  onEdit?: (id: string) => void;
 };
 
 export default function WeaponsCollection({

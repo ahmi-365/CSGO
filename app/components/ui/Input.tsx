@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-
 // The new, required props: value and onChange
 interface Props {
     className?: string;

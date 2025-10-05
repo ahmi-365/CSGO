@@ -19,6 +19,7 @@ interface Props {
   id?: string;
   leftIcon?: React.ReactNode;
   dropdownPosition?: "top" | "bottom";
+  onSelect?: (selectedItem: any) => void;
 }
 
 export default function Dropdown({ className = "", label, required, items = [], placeholder, btnClass = "min-h-11 md:min-h-12", dropdownClass = "left-0 w-full", leftIcon, id, dropdownPosition = "bottom" }: Props) {

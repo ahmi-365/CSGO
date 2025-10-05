@@ -62,6 +62,7 @@ export default function Page({}: Props) {
       image: "",
     },
   ]);
+  const [search, setSearch] = useState("");
 
   const fetchWeapons = async () => {
     try {
@@ -307,7 +308,13 @@ export default function Page({}: Props) {
           </span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4 relative z-10">
-          <Input type="search" placeholder="Search" className="md-col-span-2" />
+          <Input
+            type="search"
+            placeholder="Search"
+            className="md-col-span-2"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
           <Dropdown
             btnClass="md:col-span-1"
             placeholder="All Rarities"
