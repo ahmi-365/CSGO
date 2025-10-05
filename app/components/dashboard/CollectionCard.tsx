@@ -1,13 +1,11 @@
-"use client"
+"use client";
 import React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import ActionModal from '@/app/components/action-modal'; // Ensure this path is correct
-// No longer need CollectionItem type here if we pass individual props directly
-// import { CollectionItem } from '@/app/utilities/Types'; // You can remove this import if not used for other types within CollectionCard
+import { Settings, Trash2, Eye, Weapon } from 'lucide-react'; // Import Lucide icons
 
 type Props = {
     className?: string;
-    // Props for a single collection item
     id: string; // Add id
     img: string;
     price: number;
@@ -18,17 +16,16 @@ type Props = {
     onEdit: (id: string) => void; // Expects ID for the action
     onDelete: (id: string) => void; // Expects ID for the action
     onViewDetails: (id: string) => void; // Expects ID for the action
+    onManageWeapons: (id: string) => void; // Add this new prop
 };
 
-// CollectionCard now renders a SINGLE card
 export default function CollectionCard({
     id, img, price, items, status, color, color2,
-    onEdit, onDelete, onViewDetails,
+    onEdit, onDelete, onViewDetails, onManageWeapons, // Destructure new prop
     className = ''
 }: Props) {
-    // action_modal_index becomes action_modal_open since it's for a single card
     const [action_modal_open, set_action_modal_open] = useState(false);
-    const dropdownRef = useRef<HTMLDivElement>(null); // Only one ref needed now
+    const dropdownRef = useRef<HTMLDivElement>(null);
 
     const toggleButton = () => {
         set_action_modal_open(!action_modal_open);
@@ -47,9 +44,8 @@ export default function CollectionCard({
     }, []);
 
     return (
-        // This div is now the single card being rendered
         <div
-            key={id} // The key prop is now passed directly from the parent map
+            key={id}
             className={`relative group cursor-pointer z-1 rounded-xl overflow-hidden bg-[#1C1E2D] ${className}`}
             style={{
                 border: "double 1px transparent",
@@ -62,7 +58,7 @@ export default function CollectionCard({
                 <div ref={dropdownRef} className="absolute top-2.5 right-2.5 z-1">
                     <button
                         onClick={(e) => {
-                            e.stopPropagation(); // Prevent card click from propagating
+                            e.stopPropagation();
                             toggleButton();
                         }}
                         className={`text-white text-xl rounded-full size-10 flex items-center justify-center hover:bg-white/10 backdrop-blur-[1px] ${action_modal_open ? 'bg-white/10' : ''}`}
@@ -75,10 +71,10 @@ export default function CollectionCard({
                     </button>
                     <ActionModal
                         className={`${action_modal_open ? 'opacity-100 visible scale-100 translate-y-0' : 'opacity-0 invisible scale-95 translate-y-2'}`}
-                        // Pass the item's ID to the action functions
                         viewAction={() => { onViewDetails(id); toggleButton(); }}
                         editAction={() => { onEdit(id); toggleButton(); }}
                         deleteAction={() => { onDelete(id); toggleButton(); }}
+                        manageWeaponsAction={() => { onManageWeapons(id); toggleButton(); }} // Pass new action
                     />
                 </div>
                 <div onClick={() => onViewDetails(id)} className="w-full h-full flex flex-col items-center gap-2 xl:gap-4 cursor-pointer">

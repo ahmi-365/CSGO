@@ -5,7 +5,7 @@ import CollectionCard from '@/app/components/dashboard/CollectionCard';
 import InfoCard from '@/app/components/dashboard/InfoCard';
 import { CollectionItem, caseInfoItem } from '@/app/utilities/Types';
 import Link from 'next/link';
-import { Layers, List, DollarSign, Settings, Plus, X } from 'lucide-react';
+import { Layers, List, DollarSign, Settings, Plus, X, Weapon, Edit, Trash2 } from 'lucide-react'; // Added Weapon, Edit, Trash2 icons
 
 type Props = {}
 
@@ -24,12 +24,32 @@ interface CrateFormData {
     loot_image: string | null;
 }
 
+// New interfaces for weapon management
+interface WeaponItem {
+    id: string;
+    name: string;
+    description: string | null;
+    image: string;
+    rarity: string | null;
+    price: string;
+    probability: number | null;
+}
+
+interface AssignedWeapon extends WeaponItem {
+    pivot: {
+        crate_id: string;
+        base_weapon_id: string;
+        probability?: number; // probability for the pivot
+    };
+}
+
 export default function Page({ }: Props) {
     const [crates, setCrates] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [showModal, setShowModal] = useState(false);
     const [showDetailsModal, setShowDetailsModal] = useState(false);
+    const [showWeaponModal, setShowWeaponModal] = useState(false); // New state for weapon modal
     const [editingCrate, setEditingCrate] = useState<any>(null);
     const [viewingCrate, setViewingCrate] = useState<any>(null);
     const [isEditMode, setIsEditMode] = useState(false);
@@ -48,6 +68,10 @@ export default function Page({ }: Props) {
         loot_image: null
     });
 
+    const [availableWeapons, setAvailableWeapons] = useState<WeaponItem[]>([]); // All available weapons
+    const [assignedWeapons, setAssignedWeapons] = useState<AssignedWeapon[]>([]); // Weapons assigned to the current crate
+const [selectedWeaponsToAssign, setSelectedWeaponsToAssign] = useState<string[]>([]);
+const [selectedWeaponsToUnassign, setSelectedWeaponsToUnassign] = useState<string[]>([]);
     const baseUrl = 'https://backend.bismeel.com';
 
     // Get auth token from localStorage
@@ -114,6 +138,109 @@ export default function Page({ }: Props) {
         }
     };
 
+const fetchAvailableWeapons = async () => {
+  try {
+    const response = await fetch(`${baseUrl}/api/admin/weapons`, {
+      headers: getHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch available weapons");
+    }
+
+    const data = await response.json();
+    console.log("✅ Weapons API Response:", data);
+
+    // Fix: Correct data path
+    setAvailableWeapons(data.data?.data || []);
+  } catch (err) {
+    console.error("🚨 Error fetching available weapons:", err);
+  }
+};
+
+
+
+    // Fetch weapons assigned to a specific crate
+  const fetchCrateWeapons = async (crateId: string) => {
+    try {
+        const response = await fetch(`${baseUrl}/api/admin/crates/${crateId}/weapons`, {
+            headers: getHeaders()
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch crate weapons');
+        }
+
+        const data = await response.json();
+        console.log('Fetched crate weapons:', data);
+        // Fix: Use the correct path from your API response
+        const weaponsData = data.data?.weapons || data.weapons || [];
+        setAssignedWeapons(weaponsData);
+        return weaponsData; // Return the data for use in other functions
+    } catch (err) {
+        console.error('Error fetching crate weapons:', err);
+        alert('Failed to load crate weapons.');
+        return [];
+    }
+};
+    // Assign weapon to a crate
+const handleAssignWeapon = async () => {
+    if (!viewingCrate?.id || selectedWeaponsToAssign.length === 0) {
+        alert('Please select at least one weapon');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${baseUrl}/api/admin/crates/${viewingCrate.id}/assign-weapons`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({
+                weapon_ids: selectedWeaponsToAssign
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to assign weapons');
+        }
+
+        await fetchCrateWeapons(viewingCrate.id);
+        setSelectedWeaponsToAssign([]);
+        alert(`${selectedWeaponsToAssign.length} weapon(s) assigned successfully!`);
+    } catch (err) {
+        alert(err instanceof Error ? err.message : 'Failed to assign weapons');
+    }
+};
+    // Unassign weapon from a crate
+const handleUnassignWeapons = async () => {
+    if (!viewingCrate?.id || selectedWeaponsToUnassign.length === 0) {
+        alert('Please select at least one weapon to unassign');
+        return;
+    }
+
+    if (!confirm(`Are you sure you want to unassign ${selectedWeaponsToUnassign.length} weapon(s)?`)) return;
+
+    try {
+        const response = await fetch(`${baseUrl}/api/admin/crates/${viewingCrate.id}/unassign-weapons`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({
+                weapon_ids: selectedWeaponsToUnassign
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to unassign weapons');
+        }
+
+        await fetchCrateWeapons(viewingCrate.id);
+        setSelectedWeaponsToUnassign([]);
+        alert(`${selectedWeaponsToUnassign.length} weapon(s) unassigned successfully!`);
+    } catch (err) {
+        alert(err instanceof Error ? err.message : 'Failed to unassign weapons');
+    }
+};
     // Create new crate
     const handleCreate = async () => {
         try {
@@ -184,17 +311,19 @@ export default function Page({ }: Props) {
     };
 
     // View crate details
-    const handleViewDetails = async (crateId: string) => {
-        try {
-            const crateDetails = await fetchCrateDetails(crateId);
-            console.log('Crate Details:', crateDetails);
-            setViewingCrate(crateDetails);
-            setShowDetailsModal(true);
-        } catch (err) {
-            console.error('Error viewing details:', err);
-            alert('Failed to load crate details');
-        }
-    };
+   const handleViewDetails = async (crateId: string) => {
+    try {
+        const crateDetails = await fetchCrateDetails(crateId);
+        console.log('Crate Details:', crateDetails);
+        setViewingCrate(crateDetails);
+        // Fetch and update assigned weapons state with the actual data
+        const weapons = await fetchCrateWeapons(crateId);
+        setShowDetailsModal(true);
+    } catch (err) {
+        console.error('Error viewing details:', err);
+        alert('Failed to load crate details');
+    }
+};
 
     // Open edit modal
     const handleEdit = async (crateId: string) => {
@@ -233,6 +362,21 @@ export default function Page({ }: Props) {
         setShowModal(true);
     };
 
+    // Open weapon management modal
+const handleManageWeapons = async (crateId: string) => {
+    try {
+        const crateDetails = await fetchCrateDetails(crateId);
+        setViewingCrate(crateDetails);
+        await fetchAvailableWeapons();
+        await fetchCrateWeapons(crateId);
+        setSelectedWeaponsToAssign([]);
+        setSelectedWeaponsToUnassign([]); // Add this line
+        setShowWeaponModal(true);
+    } catch (err) {
+        console.error('Error managing weapons:', err);
+        alert('Failed to load weapon management for this crate.');
+    }
+};
     // Reset form
     const resetForm = () => {
         setFormData({
@@ -260,16 +404,27 @@ export default function Page({ }: Props) {
         }));
     };
 
+    // Handle probability change for assigned weapons
+    const handleAssignedWeaponProbabilityChange = (weaponId: string, value: string) => {
+        setAssignedWeapons(prev => prev.map(weapon =>
+            weapon.id === weaponId
+                ? { ...weapon, pivot: { ...weapon.pivot, probability: parseFloat(value) || 0 } }
+                : weapon
+        ));
+    };
+
+
     useEffect(() => {
         fetchCrates();
+        fetchAvailableWeapons(); // Fetch available weapons on initial load
     }, []);
 
     // Calculate stats
     const totalCases = crates.length;
     const activeCases = crates.length;
-    const totalItems = crates.reduce((sum, crate) => {
-        return sum + (crate.items?.length || 0) + (crate.weapons?.length || 0);
-    }, 0);
+ const totalItems = crates.reduce((sum, crate) => {
+    return sum + (crate.weapons?.length || 0);
+}, 0);
     const totalValue = crates.reduce((sum, crate) => {
         return sum + parseFloat(crate.price || '0');
     }, 0);
@@ -312,18 +467,20 @@ export default function Page({ }: Props) {
             { color: '#702AEC', color2: '#2C2053' },
         ];
         const colorSet = colors[index % colors.length];
+const weaponCount = crate.weapons?.length || 0;
 
         return {
             id: crate.id,
             img: crate.image,
             price: parseFloat(crate.price),
-            items: (crate.items?.length || 0) + (crate.weapons?.length || 0),
+    items: weaponCount, // Only count weapons now
             status: "Active",
             color: colorSet.color,
             color2: colorSet.color2,
             onEdit: () => handleEdit(crate.id),
             onDelete: () => handleDelete(crate.id),
-            onViewDetails: () => handleViewDetails(crate.id)
+            onViewDetails: () => handleViewDetails(crate.id),
+            onManageWeapons: () => handleManageWeapons(crate.id) // New action for weapon management
         };
     });
 
@@ -391,6 +548,7 @@ export default function Page({ }: Props) {
                 onViewDetails={singleCard.onViewDetails} // Pass individual actions
                 onEdit={singleCard.onEdit}
                 onDelete={singleCard.onDelete}
+                onManageWeapons={singleCard.onManageWeapons} // Pass new prop
             />
         ))}
     </div>
@@ -630,43 +788,85 @@ export default function Page({ }: Props) {
                                         {viewingCrate.loot_image && (
                                             <div className="col-span-2">
                                                 <label className="text-sm text-gray-400">Loot Image</label>
-                                                <img src={viewingCrate.loot_image} alt="Loot" className="mt-2 max-h-32 rounded-lg" />
-                                            </div>
+                                                <img src={viewingCrate.loot_image} alt="Loot" className="mt-2 max-h-32 rounded-lg" /></div>
                                         )}
                                     </div>
                                 </div>
                             )}
 
                             {/* Items/Weapons */}
-                            {(viewingCrate.items?.length > 0 || viewingCrate.weapons?.length > 0) && (
-                                <div>
-                                    <h3 className="text-lg font-semibold text-white mb-3 border-b border-white/10 pb-2">
-                                        Items & Weapons ({(viewingCrate.items?.length || 0) + (viewingCrate.weapons?.length || 0)})
-                                    </h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                        {[...(viewingCrate.items || []), ...(viewingCrate.weapons || [])].map((item: any) => (
-                                            <div key={item.id} className="bg-[#0D0F14] border border-white/10 rounded-lg p-3 flex items-center gap-3">
-                                                {item.image && (
-                                                    <img src={item.image} alt={item.name} className="w-16 h-16 object-contain rounded" />
-                                                )}
-                                                <div className="flex-1">
-                                                    <p className="text-white font-medium text-sm">{item.name}</p>
-                                                    <p className="text-gray-400 text-xs">{item.id}</p>
-                                                    {item.price && (
-                                                        <p className="text-primary font-semibold text-sm mt-1">${item.price}</p>
-                                                    )}
-                                                    {item.rarity && (
-                                                        <p className="text-gray-400 text-xs">Rarity: {item.rarity}</p>
-                                                    )}
-                                                    {item.probability && (
-                                                        <p className="text-gray-400 text-xs">Probability: {item.probability}%</p>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
+                          {/* Items/Weapons */}
+{(viewingCrate.items?.length > 0 || assignedWeapons.length > 0) && (
+  <div>
+    <h3 className="text-lg font-semibold text-white mb-3 border-b border-white/10 pb-2">
+        Currently Assigned Weapons ({assignedWeapons.length})
+    </h3>
+    {assignedWeapons.length === 0 ? (
+        <p className="text-gray-400">No weapons assigned to this crate yet.</p>
+    ) : (
+        <div className="space-y-4">
+            <div className="bg-[#0D0F14] border border-white/10 rounded-lg p-3 max-h-96 overflow-y-auto">
+                {assignedWeapons.map(weapon => (
+                    <label key={weapon.id} className="flex items-center gap-3 p-2 hover:bg-white/5 rounded cursor-pointer border-b border-white/5 last:border-0">
+                        <input
+                            type="checkbox"
+                            checked={selectedWeaponsToUnassign.includes(weapon.id)}
+                            onChange={(e) => {
+                                if (e.target.checked) {
+                                    setSelectedWeaponsToUnassign(prev => [...prev, weapon.id]);
+                                } else {
+                                    setSelectedWeaponsToUnassign(prev => prev.filter(id => id !== weapon.id));
+                                }
+                            }}
+                            className="w-4 h-4 rounded border-white/10 bg-gray-800 text-red-500 focus:ring-red-500"
+                        />
+                        {weapon.image && (
+                            <img src={weapon.image} alt={weapon.name} className="w-12 h-12 object-contain rounded" />
+                        )}
+                        <div className="flex-1">
+                            <p className="text-white font-medium text-sm">{weapon.name}</p>
+                            <p className="text-gray-400 text-xs">{weapon.id}</p>
+                            {weapon.probability !== undefined && weapon.probability !== null && (
+                                <p className="text-gray-400 text-xs">Probability: {weapon.probability}%</p>
                             )}
+                        </div>
+                    </label>
+                ))}
+            </div>
+            
+            {selectedWeaponsToUnassign.length > 0 && (
+                <div className="flex items-center justify-between bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                    <p className="text-red-400 text-sm font-medium">
+                        {selectedWeaponsToUnassign.length} weapon(s) selected for removal
+                    </p>
+                    <button
+                        onClick={handleUnassignWeapons}
+                        className="bg-red-500 hover:bg-red-600 text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2"
+                    >
+                        <Trash2 size={16} />
+                        Unassign Selected
+                    </button>
+                </div>
+            )}
+            
+            <div className="flex gap-2">
+                <button
+                    onClick={() => setSelectedWeaponsToUnassign(assignedWeapons.map(w => w.id))}
+                    className="flex-1 bg-gray-700 hover:bg-gray-600 text-white rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+                >
+                    Select All
+                </button>
+                <button
+                    onClick={() => setSelectedWeaponsToUnassign([])}
+                    className="flex-1 bg-gray-700 hover:bg-gray-600 text-white rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+                >
+                    Deselect All
+                </button>
+            </div>
+        </div>
+    )}
+</div>
+)}
 
                             {/* Skins */}
                             {viewingCrate.skins?.length > 0 && (
@@ -712,6 +912,161 @@ export default function Page({ }: Props) {
                         <div className="flex gap-3 p-6 border-t border-white/10">
                             <button
                                 onClick={() => setShowDetailsModal(false)}
+                                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white rounded-lg px-4 py-2 font-medium transition-colors"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Weapon Management Modal */}
+            {showWeaponModal && viewingCrate && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-[#1A1D29] rounded-xl border border-white/10 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+                        <div className="flex items-center justify-between p-6 border-b border-white/10">
+                            <h2 className="text-xl font-bold text-white">Manage Weapons for {viewingCrate.name}</h2>
+                            <button 
+                                onClick={() => setShowWeaponModal(false)}
+                                className="text-gray-400 hover:text-white transition-colors"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+                        
+                        <div className="p-6 space-y-6">
+                            {/* Assign New Weapon */}
+                            <div>
+                                <h3 className="text-lg font-semibold text-white mb-3 border-b border-white/10 pb-2">Assign New Weapon</h3>
+                 <div className="space-y-4">
+    <div>
+        <label className="block text-sm font-medium text-gray-300 mb-2">Select Weapons</label>
+        <div className="bg-[#0D0F14] border border-white/10 rounded-lg p-3 max-h-64 overflow-y-auto">
+            {availableWeapons
+                .filter(weapon => !assignedWeapons.some(aw => aw.id === weapon.id))
+                .map(weapon => (
+                    <label key={weapon.id} className="flex items-center gap-3 p-2 hover:bg-white/5 rounded cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={selectedWeaponsToAssign.includes(weapon.id)}
+                            onChange={(e) => {
+                                if (e.target.checked) {
+                                    setSelectedWeaponsToAssign(prev => [...prev, weapon.id]);
+                                } else {
+                                    setSelectedWeaponsToAssign(prev => prev.filter(id => id !== weapon.id));
+                                }
+                            }}
+                            className="w-4 h-4 rounded border-white/10 bg-gray-800 text-primary focus:ring-primary"
+                        />
+                        <div className="flex-1">
+                            <p className="text-white text-sm font-medium">{weapon.name}</p>
+                            <p className="text-gray-400 text-xs">{weapon.id}</p>
+                        </div>
+                        {weapon.image && (
+                            <img src={weapon.image} alt={weapon.name} className="w-10 h-10 object-contain rounded" />
+                        )}
+                    </label>
+                ))
+            }
+            {availableWeapons.filter(weapon => !assignedWeapons.some(aw => aw.id === weapon.id)).length === 0 && (
+                <p className="text-gray-400 text-sm text-center py-4">All weapons are already assigned</p>
+            )}
+        </div>
+        {selectedWeaponsToAssign.length > 0 && (
+            <p className="text-sm text-gray-400 mt-2">
+                {selectedWeaponsToAssign.length} weapon(s) selected
+            </p>
+        )}
+    </div>
+    <button
+        onClick={handleAssignWeapon}
+        disabled={selectedWeaponsToAssign.length === 0}
+        className="w-full bg-primary hover:bg-primary/80 text-white rounded-lg px-4 py-2 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+        Assign {selectedWeaponsToAssign.length > 0 ? `${selectedWeaponsToAssign.length} ` : ''}Weapon(s)
+    </button>
+</div>
+                            </div>
+
+                            {/* Assigned Weapons */}
+                            <div>
+                                <h3 className="text-lg font-semibold text-white mb-3 border-b border-white/10 pb-2">
+                                    Currently Assigned Weapons ({assignedWeapons.length})
+                                </h3>
+                                {assignedWeapons.length === 0 ? (
+                                    <p className="text-gray-400">No weapons assigned to this crate yet.</p>
+                                ) : (
+                                    <>
+                                     <div className="space-y-4">
+    <div className="bg-[#0D0F14] border border-white/10 rounded-lg p-3 max-h-96 overflow-y-auto">
+        {assignedWeapons.map(weapon => (
+            <label key={weapon.id} className="flex items-center gap-3 p-2 hover:bg-white/5 rounded cursor-pointer border-b border-white/5 last:border-0">
+                <input
+                    type="checkbox"
+                    checked={selectedWeaponsToUnassign.includes(weapon.id)}
+                    onChange={(e) => {
+                        if (e.target.checked) {
+                            setSelectedWeaponsToUnassign(prev => [...prev, weapon.id]);
+                        } else {
+                            setSelectedWeaponsToUnassign(prev => prev.filter(id => id !== weapon.id));
+                        }
+                    }}
+                    className="w-4 h-4 rounded border-white/10 bg-gray-800 text-red-500 focus:ring-red-500"
+                />
+                {weapon.image && (
+                    <img src={weapon.image} alt={weapon.name} className="w-12 h-12 object-contain rounded" />
+                )}
+                <div className="flex-1">
+                    <p className="text-white font-medium text-sm">{weapon.name}</p>
+                    <p className="text-gray-400 text-xs">{weapon.id}</p>
+                    {weapon.probability !== undefined && weapon.probability !== null && (
+                        <p className="text-gray-400 text-xs">Probability: {weapon.probability}%</p>
+                    )}
+                </div>
+            </label>
+        ))}
+    </div>
+    
+    {selectedWeaponsToUnassign.length > 0 && (
+        <div className="flex items-center justify-between bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+            <p className="text-red-400 text-sm font-medium">
+                {selectedWeaponsToUnassign.length} weapon(s) selected for removal
+            </p>
+            <button
+                onClick={handleUnassignWeapons}
+                className="bg-red-500 hover:bg-red-600 text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2"
+            >
+                <Trash2 size={16} />
+                Unassign Selected
+            </button>
+        </div>
+    )}
+    
+    <div className="flex gap-2">
+        <button
+            onClick={() => setSelectedWeaponsToUnassign(assignedWeapons.map(w => w.id))}
+            className="flex-1 bg-gray-700 hover:bg-gray-600 text-white rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+        >
+            Select All
+        </button>
+        <button
+            onClick={() => setSelectedWeaponsToUnassign([])}
+            className="flex-1 bg-gray-700 hover:bg-gray-600 text-white rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+        >
+            Deselect All
+        </button>
+    </div>
+</div>
+                                            
+                                    </>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 p-6 border-t border-white/10">
+                            <button
+                                onClick={() => setShowWeaponModal(false)}
                                 className="flex-1 bg-gray-700 hover:bg-gray-600 text-white rounded-lg px-4 py-2 font-medium transition-colors"
                             >
                                 Close

@@ -39,6 +39,26 @@ export const favicon = <svg width="44" height="44" viewBox="0 0 44 44" fill="non
 </svg>
 
 
+export const Weapon = (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+    <path d="M2 12h3l1 3h4l1-3h9v-2H2z" />
+    <path d="M17 10v4" />
+    <path d="M10 15v2h2v-2z" />
+    <path d="M21 10h1v4h-1z" />
+  </svg>
+);
+
+
+export const pistol = (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-gun">
+        <path d="M13 3l-4 4h-6c-1.1 0-2 .9-2 2v6c0 1.1.9 2 2 2h6l4 4" />
+        <path d="M19 12h5" />
+        <path d="M16 12h-3l-2-2" />
+        <path d="M16 12h-3l-2 2" />
+        <path d="M22 8v8" />
+    </svg>
+);
+
 export const arrow_down = (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
     <path d="M5 7.5L10 12.5L15 7.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
 </svg>)

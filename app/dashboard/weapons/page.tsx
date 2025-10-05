@@ -64,13 +64,21 @@ export default function Page({ }: Props) {
       const token = authData?.token;
       if (!token) throw new Error("Authorization token not found.");
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/admin/base-weapons`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/admin/weapons`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!response.ok) throw new Error('Failed to fetch data.');
 
+      // ... (inside fetchWeapons function)
+
       const result = await response.json();
       
+      // --- FIX STARTS HERE ---
+      // The actual array is nested inside result.data
+      // You need to access result.data.data
+      const weaponsArray = result.data.data; 
+      // --- FIX ENDS HERE ---
+
       const defaultColors = [
           { color: '#FB8609', color2: '#4A3426' },
           { color: '#236DFF', color2: '#203057' },
@@ -80,7 +88,8 @@ export default function Page({ }: Props) {
           { color: '#702AEC', color2: '#2D2154' },
       ];
 
-      const formattedData: CardData[] = result.data.map((weapon: ApiWeapon, index: number) => ({
+      // Change result.data.map to weaponsArray.map
+      const formattedData: CardData[] = weaponsArray.map((weapon: ApiWeapon, index: number) => ({
         id: weapon.id,
         title: weapon.name,
         img: weapon.image,
@@ -91,6 +100,7 @@ export default function Page({ }: Props) {
 
       setWeapons(formattedData);
     } catch (err: any) {
+// ... rest of your code
       setError(err.message);
     } finally {
       setIsLoading(false);
@@ -200,7 +210,7 @@ export default function Page({ }: Props) {
             rarity: item.rarity,
         };
 
-        return fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/admin/base-weapons`, {
+        return fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/admin/weapons`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
