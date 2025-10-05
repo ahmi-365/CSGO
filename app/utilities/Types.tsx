@@ -60,3 +60,13 @@ export interface StremItem {
     color: string;
     color2: string;
 }
+
+export interface CardData {
+  id: string;
+  title: string;
+  img: string;
+  price: number | string;
+  percent: number;
+  color: string;
+  color2: string;
+}
