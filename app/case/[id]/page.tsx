@@ -14,7 +14,11 @@ interface IncreamentCoutItem {
   count: number;
   color?: string;
 }
-
+interface PageProps {
+  params: {
+    id: string; // This will correctly capture the ID from the URL
+  };
+}
 interface SpinIconItem {
   icon: JSX.Element | string;
   bgColor: string;
@@ -62,7 +66,8 @@ const getAuthData = () => {
   return authData ? JSON.parse(authData) : null;
 };
 
-export default function Page({ crateId = "crate-8905" }: Props) {
+export default function Page({ params }: PageProps) {
+  const crateId = params.id;
   const [crateData, setCrateData] = useState<CrateData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -14,7 +14,7 @@ interface SocialItem {
 }
 
 interface ApiCrate {
-    id: string;
+    id: string; // Ensure the API crate also has an ID
     name: string;
     image: string;
     price: string;
@@ -46,6 +46,7 @@ export default function Cases({ loginAuth = true }: Props) {
                 
                 // Transform API data to match CaseItem type
                 const transformedCases: CaseItem[] = data.crates.data.map((crate: ApiCrate) => ({
+                    id: crate.id, // Assign the ID from the API response
                     img: crate.image,
                     price: `$${crate.price}`,
                     des: crate.name,
@@ -113,10 +114,10 @@ export default function Cases({ loginAuth = true }: Props) {
         },
     ]
 
-    // Generate the path for the featured case
+    // Generate the path for the featured case using its ID
     const featuredCasePath = featuredCase 
-        ? `/case/${featuredCase.des.toLowerCase().replace(/\s+/g, '-')}`
-        : '/login';
+        ? `/case/${featuredCase.id}`
+        : '/login'; // Fallback if no featured case
 
     return (
         <>
@@ -146,7 +147,7 @@ export default function Cases({ loginAuth = true }: Props) {
                             </p>
                             <div className="flex items-center justify-center md:justify-start gap-4 md:gap-6">
                                 <Link 
-                                    href={featuredCasePath}
+                                    href={featuredCasePath} // This uses the ID for navigation
                                     className='grow md:grow-0 min-w-45 gradient-border-two rounded-full p-px overflow-hidden shadow-[0_4px_8px_0_rgba(59,188,254,0.32)] text-sm md:text-base min-h-13 flex items-center justify-center text-white font-bold'
                                 >
                                     <span className='px-5'>
@@ -178,7 +179,7 @@ export default function Cases({ loginAuth = true }: Props) {
                             </p>
                             <div className="flex flex-wrap flex-col-reverse md:flex-row w-full gap-4">
                                 <Link 
-                                    href={featuredCasePath}
+                                    href={featuredCasePath} // This uses the ID for navigation
                                     className='grow md:grow-0 gradient-border-two rounded-full p-px overflow-hidden shadow-[0_4px_8px_0_rgba(59,188,254,0.32)] text-sm md:text-base min-h-13 flex items-center justify-center text-white font-bold'
                                 >
                                     <span className='px-5'>
@@ -204,7 +205,7 @@ export default function Cases({ loginAuth = true }: Props) {
                         ))
                     ) : caseItems.length > 0 ? (
                         caseItems.map((item, index) => (
-                            <BuyCard item={item} key={index} path={`/case/${item.des.toLowerCase().replace(/\s+/g, '-')}`} />
+                            <BuyCard item={item} key={index} path={`/case/${item.id}`} /> 
                         ))
                     ) : (
                         <div className="col-span-full text-center py-12 text-gray-400">
