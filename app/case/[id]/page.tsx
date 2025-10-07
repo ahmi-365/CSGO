@@ -14,16 +14,6 @@ interface IncreamentCoutItem {
   count: number;
   color?: string;
 }
-interface PageProps {
-  params: {
-    id: string; // This will correctly capture the ID from the URL
-  };
-}
-interface SpinIconItem {
-  icon: JSX.Element | string;
-  bgColor: string;
-  textColor: string | null;
-}
 
 interface CrateItem {
   id: string;
@@ -56,18 +46,14 @@ interface FairnessData {
   verify_url: string;
 }
 
-type Props = {
-  crateId?: string;
-};
-
 const getAuthData = () => {
   if (typeof window === "undefined") return null;
   const authData = localStorage.getItem("auth");
   return authData ? JSON.parse(authData) : null;
 };
 
-export default function Page({ params }: PageProps) {
-  const crateId = params.id;
+export default function Page({ params }: { params: Promise<{ id: string }> }) {
+  const [crateId, setCrateId] = useState<string>("");
   const [crateData, setCrateData] = useState<CrateData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -81,7 +67,18 @@ export default function Page({ params }: PageProps) {
 
   const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "YOUR_BASE_URL_HERE";
 
+  // Resolve the params promise
   useEffect(() => {
+    const resolveParams = async () => {
+      const resolvedParams = await params;
+      setCrateId(resolvedParams.id);
+    };
+    resolveParams();
+  }, [params]);
+
+  useEffect(() => {
+    if (!crateId) return;
+
     const fetchCrateData = async () => {
       try {
         setLoading(true);
@@ -182,7 +179,7 @@ export default function Page({ params }: PageProps) {
     }
   };
 
- const handleOpenCrate = async () => {
+  const handleOpenCrate = async () => {
     if (spinning) return;
     setSpinning(true);
     // Spinner ko shuruaati position par reset karein
@@ -292,20 +289,7 @@ export default function Page({ params }: PageProps) {
           color: "#FFFFFF",
           confirmButtonText: "Awesome!",
           confirmButtonColor: "#3085d6",
-
-          // --- "VERIFY FAIRNESS" BUTTON KO YAHAN COMMENT KIYA GAYA HAI ---
-          // showDenyButton: true,
-          // denyButtonText: "Verify Fairness",
-
-        })
-        
-        // --- "VERIFY FAIRNESS" BUTTON KI FUNCTIONALITY KO YAHAN COMMENT KIYA GAYA HAI ---
-        // .then((popupResult) => {
-        //   if (popupResult.isDenied) {
-        //     handleVerify(fairnessData.verify_url);
-        //   }
-        // });
-
+        });
       }, 7000);
     } catch (err: any) {
       Swal.fire(
@@ -340,6 +324,7 @@ export default function Page({ params }: PageProps) {
 
   const caseItems: CaseItem[] =
     crateData?.items.map((item) => ({
+      id: item.id,
       img: item.image,
       price: `$${parseFloat(item.price).toFixed(2)}`,
       des: item.name,
@@ -561,4 +546,11 @@ export default function Page({ params }: PageProps) {
       </div>
     </PageContainer>
   );
+}
+
+// Add missing interface
+interface SpinIconItem {
+  icon: JSX.Element | string;
+  bgColor: string;
+  textColor: string | null;
 }

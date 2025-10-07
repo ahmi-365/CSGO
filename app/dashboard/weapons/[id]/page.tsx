@@ -26,14 +26,15 @@ const getAuthData = () => {
 };
 
 type Props = {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 };
 
 export default function WeaponDetailPage({ params }: Props) {
   const router = useRouter();
-  const { id } = params;
+  const resolvedParams = React.use(params);
+  const { id } = resolvedParams;
 
   const [weapon, setWeapon] = useState<ApiWeapon | null>(null);
   const [isLoading, setIsLoading] = useState(true);

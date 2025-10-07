@@ -57,8 +57,8 @@ export default function InventoryDetailPage() {
         }
     };
 
-    const getRarityColor = (rarity: string | null): string => {
-        const rarityColors: { [key: string]: string } = {
+    const getRarityColor = (rarity: string | null | undefined): string => {
+        const rarityColors: Record<string, string> = {
             'Common': '#39FF67',
             'Uncommon': '#FFD700',
             'Rare': '#4FC8FF',
@@ -66,10 +66,10 @@ export default function InventoryDetailPage() {
             'Legendary': '#E94444',
             'Ancient': '#FF8809',
         };
-        return rarityColors[rarity || 'Common'] || '#FF8809';
+        return rarityColors[rarity ?? 'Common'] ?? '#FF8809';
     };
 
-    const getRarityGradient = (rarity: string | null): string => {
+    const getRarityGradient = (rarity: string | null | undefined): string => {
         const color = getRarityColor(rarity);
         return `linear-gradient(#12141E, #12141E), linear-gradient(${color}26 95%, ${color} 100%)`;
     };
@@ -135,8 +135,8 @@ export default function InventoryDetailPage() {
 
     const marketValue = parseFloat(weaponData.weapon?.price || '0');
     const youReceive = calculateYouReceive(marketValue);
-    const rarityColor = getRarityColor(weaponData.weapon?.rarity || null);
-
+    const rarityColor = getRarityColor(weaponData.weapon?.rarity);
+    
     return (
         <PageContainer>
             <div className="min-h-[calc(100vh-65px)] w-full flex-col flex items-center justify-center py-8">

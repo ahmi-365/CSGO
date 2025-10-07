@@ -1,6 +1,7 @@
 "use client"
 
 import Input from '@/app/components/ui/Input'
+import React from 'react';
 
 interface Notes {
     des: string;
@@ -48,14 +49,37 @@ export default function Bitcoin({ }: Props) {
             des: 'Network fee: 0.0005 BTC',
         },
     ]
+    const [amount, setAmount] = React.useState('');
+
     return (
         <div>
            <div className="flex items-center justify-between">
              <h3 className='text-lg md:text-xl lg:text-[22px] text-white font-satoshi font-bold !leading-[120%] mb-2 md:mb-3'>Withdraw Bitcoin</h3>
-             <p className='text-base text-[#6F7083] font-satoshi font-medium !leading-[120%]'>($118,169.00)</p>
+            <Input 
+                className='mb-3 md:mb-4 lg:mb-5' 
+                type='text' 
+                label='Amount (BTC)' 
+                placeholder='Min: 0.0001 BTC' 
+                value={amount} 
+                onChange={(e) => setAmount(e.target.value)} 
+            />
            </div>
-            <Input className='mb-3 md:mb-4 lg:mb-5' type='text' label='Amount (BTC)' placeholder='Min: 0.0001 BTC' />
-            <Input className='mb-3 md:mb-4 lg:mb-5' type='text' label='Withdrawal Address' placeholder='Enter Bitcoin address' />
+            <Input 
+                className='mb-3 md:mb-4 lg:mb-5' 
+                type='text' 
+                label='Amount (BTC)' 
+                placeholder='Min: 0.0001 BTC' 
+                value={amount} 
+                onChange={(e) => setAmount(e.target.value)} 
+            />
+            <Input 
+                className='mb-3 md:mb-4 lg:mb-5' 
+                type='text' 
+                label='Withdrawal Address' 
+                placeholder='Enter Bitcoin address' 
+                value={amount} 
+                onChange={(e) => setAmount(e.target.value)} 
+            />
             <div className="px-4 py-3 rounded-xl border border-solid border-[#39FF67]/10 bg-white/4 mb-4 md:mb-5">
                 <h4 className='text-lg text-white font-satoshi font-bold !leading-[120%] mb-3 md:mb-4'>Transaction Summary</h4>
                {summary.map((item, index) => (

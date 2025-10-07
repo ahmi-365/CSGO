@@ -35,7 +35,7 @@ interface PopularCase {
 }
 
 // Helper function to format numbers
-const formatNumber = (num) => {
+const formatNumber = (num: number): string => {
   if (num >= 1000000) return (num / 1000000).toFixed(1) + ' M+';
   if (num >= 1000) return (num / 1000).toFixed(1) + ' K+';
   return num.toString();
@@ -195,7 +195,7 @@ export default function AnalyticsDashboard() {
                 <div className="flex-none w-35 h-2 bg-[#171925]/20 rounded-full overflow-hidden">
                   <div className="h-2 bg-[#39FF67] rounded-full" style={{ width: `${item.percent || 50}%` }}></div>
                 </div>
-                <span className="text-[#39FF67] text-base ml-5 md:ml-7.5">${parseFloat(item.revenue || 0).toFixed(2)}</span>
+                <span className="text-[#39FF67] text-base ml-5 md:ml-7.5">${parseFloat(String(item.revenue || 0)).toFixed(2)}</span>
               </div>
             </div>
           )) : (
@@ -213,7 +213,7 @@ export default function AnalyticsDashboard() {
                   <span className="size-7 rounded-full bg-[linear-gradient(98deg,rgba(255,136,9,0.90)_4.34%,rgba(254,59,13,0.90)_95.95%)] text-white font-bold flex items-center justify-center">{index + 1}</span>
                   <span className="text-white text-base font-medium">{spender.name}</span>
                 </div>
-                <span className="text-[#FF8809] text-base font-medium">${parseFloat(spender.amount || 0).toFixed(2)}</span>
+                <span className="text-[#FF8809] text-base font-medium">${parseFloat(String(spender.amount || 0)).toFixed(2)}</span>
               </div>
             )) : (
               <div className="text-white/50 text-center py-6">No spenders data available</div>
@@ -230,7 +230,7 @@ export default function AnalyticsDashboard() {
                   <div className="text-white/50 text-xs">{c.opens || 0} opens</div>
                 </div>
                 <div className="">
-                  <span className="text-[#3A8BFF] text-base font-medium mb-1.5 block text-end">${parseFloat(c.amount || 0).toFixed(2)}</span>
+                  <span className="text-[#3A8BFF] text-base font-medium mb-1.5 block text-end">${parseFloat(String(c.amount || 0)).toFixed(2)}</span>
                   <div className="w-25 h-2 bg-[#171925]/20 rounded-full overflow-hidden">
                     <div className="h-2 bg-[#347BFF] rounded-full" style={{ width: `${c.percent || 70}%` }}></div>
                   </div>

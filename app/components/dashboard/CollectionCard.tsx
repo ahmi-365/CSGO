@@ -2,7 +2,7 @@
 import React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import ActionModal from '@/app/components/action-modal'; // Ensure this path is correct
-import { Settings, Trash2, Eye, Weapon } from 'lucide-react'; // Import Lucide icons
+import { Settings, Trash2, Eye } from 'lucide-react'; // Import Lucide icons
 
 type Props = {
     className?: string;

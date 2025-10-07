@@ -309,6 +309,7 @@ export default function Inventory({ loginAuth, baseUrl = 'https://backend.bismee
                         filteredData.map((item) => (
                             <BuyCard 
                                 item={{
+                                    id: item.id.toString(),
                                     img: item.weapon.image,
                                     price: `$${parseFloat(item.weapon.price).toFixed(2)}`,
                                     des: item.weapon.name,

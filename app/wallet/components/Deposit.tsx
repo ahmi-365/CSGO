@@ -25,6 +25,7 @@ export default function Bitcoin({ }: Props) {
     },
   ]
   const [is_copied, set_is_copied] = useState(false)
+  const [amount, setAmount] = useState('');
   const handleCopy = (e: string) => {
     navigator.clipboard.writeText(e).then(() => {
       set_is_copied(true);
@@ -35,8 +36,22 @@ export default function Bitcoin({ }: Props) {
   }
   return (
     <div>
-      <h3 className='text-lg md:text-xl xl:text-[22px] text-white font-satoshi font-bold !leading-[120%] mb-2 md:mb-3'>Deposit Bitcoin</h3>
-      <Input className='mb-4 md:mb-5' type='text' label='Amount (BTC)' placeholder='Min: 0.0001 BTC' />
+      <Input 
+        className='mb-4 md:mb-5' 
+        type='text' 
+        label='Amount (BTC)' 
+        placeholder='Min: 0.0001 BTC' 
+        value={amount} 
+        onChange={(e) => setAmount(e.target.value)} 
+      />
+      <Input 
+        className='mb-4 md:mb-5' 
+        type='text' 
+        label='Amount (BTC)' 
+        placeholder='Min: 0.0001 BTC' 
+        value={amount} 
+        onChange={(e) => setAmount(e.target.value)} 
+      />
       <div className="px-4 py-3 rounded-xl border border-solid border-[#39FF67]/10 bg-[#39FF67]/10 mb-3 md:mb-4 lg:mb-5">
         <h4 className='text-lg text-white font-satoshi font-bold !leading-[120%] mb-3 md:mb-4'>Market Value</h4>
         <div className="bg-[#171925]/25 px-3 py-4 rounded-xl mb-3 flex items-center justify-between">

@@ -1,6 +1,7 @@
 import { JSX } from "react";
 
 export interface CaseItem {
+     id: string;
     img?: string;
     price?: string;
     des?: string;
@@ -8,12 +9,17 @@ export interface CaseItem {
     btn?:string;
 }
 export interface CollectionItem {
-    img?: string;
-    price?: number | string;
-    items?: number | string;
-    status?: string;
-    color?: string;
-    color2?: string;
+    id: string; // Added 'id' property
+    img: string;
+    price: number;
+    items: number;
+    status: string;
+    color: string;
+    color2: string;
+    onEdit: () => void;
+    onDelete: () => void;
+    onViewDetails: () => void;
+    onManageWeapons: () => void;
 }
 export interface WeaponsCollection {
     img?: string;
