@@ -209,10 +209,15 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
         },
         body: JSON.stringify({ client_seed }),
       });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to open the crate.");
-      }
+    if (!response.ok) {
+  const errorData = await response.json();
+  const msg =
+    errorData.error ||
+    errorData.message ||
+    "Failed to open the crate. Please try again.";
+  throw new Error(msg);
+}
+
 
       const result = await response.json();
       const wonWeapon: CrateItem = result.result.weapon;
