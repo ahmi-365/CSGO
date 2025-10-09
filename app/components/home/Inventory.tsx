@@ -271,7 +271,7 @@ export default function Inventory({ loginAuth, baseUrl = 'https://backend.bismee
                                 { name: 'Mythical' },
                                 { name: 'Legendary' }
                             ]} 
-                            onSelect={(item) => setSelectedRarity(item.name)}
+                            onSelect={(item) => setSelectedRarity(item.name as string)}
                             leftIcon={
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
                                     <path d="M3 5H13.8333" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -289,7 +289,7 @@ export default function Inventory({ loginAuth, baseUrl = 'https://backend.bismee
                                 { name: 'Sort Date' }, 
                                 { name: 'Sort Name' }
                             ]} 
-                            onSelect={(item) => setSortBy(item.name)}
+                            onSelect={(item) => setSortBy(item.name as string)}
                             leftIcon={
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
                                     <path d="M3 5H13.8333" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />

@@ -1,10 +1,9 @@
 "use client";
 
 import WeaponsCollection from "@/app/components/dashboard/WeaponsCollection";
-import Dropdown from "@/app/components/ui/Dropdown";
 import Input from "@/app/components/ui/Input";
 import React, { useState, useEffect } from "react";
-import { Filter, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import Swal from "sweetalert2";
 import Link from "next/link";
 
@@ -16,7 +15,6 @@ interface ApiWeapon {
   name: string;
   description: string;
   image: string;
-  rarity: string | null;
   price: string;
   probability: number | null;
 }
@@ -36,16 +34,7 @@ interface NewCaseItem {
   price: string;
   description: string;
   probability: string;
-  rarity: string;
-  rarity_id: string; // This correctly holds the ID of the selected rarity
   image: string;
-}
-
-// Interface for Rarity data from the API
-interface Rarity {
-  id: string;
-  name: string;
-  color: string;
 }
 
 const getAuthData = () => {
@@ -60,28 +49,21 @@ export default function Page({}: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [newCaseItems, setNewCaseItems] = useState<NewCaseItem[]>([]);
+  const [newCaseItems, setNewCaseItems] = useState<NewCaseItem[]>([
+    {
+      name: "",
+      price: "",
+      description: "",
+      probability: "",
+      image: "",
+    },
+  ]);
   const [search, setSearch] = useState("");
-  const [rarities, setRarities] = useState<Rarity[]>([]);
 
-  // Set initial form state only after rarities are fetched
-  useEffect(() => {
-    if (rarities.length > 0 && newCaseItems.length === 0) {
-      const defaultRarity = rarities.find(r => r.name === "Common") || rarities[0];
-      setNewCaseItems([
-        {
-          name: "",
-          price: "",
-          description: "",
-          probability: "",
-          rarity: defaultRarity.name,
-          rarity_id: defaultRarity.id,
-          image: "",
-        },
-      ]);
-    }
-  }, [rarities, newCaseItems.length]);
-
+  // Filter weapons based on search
+  const filteredWeapons = weapons.filter((weapon) =>
+    weapon.title.toLowerCase().includes(search.toLowerCase())
+  );
 
   const fetchWeapons = async () => {
     try {
@@ -129,42 +111,8 @@ export default function Page({}: Props) {
     }
   };
 
-  const fetchRarities = async () => {
-    try {
-      const authData = getAuthData();
-      const token = authData?.token;
-      if (!token) throw new Error("Authorization token not found.");
-
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/admin/rarities`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch rarities.");
-      }
-
-      const result = await response.json();
-      if (result.success && Array.isArray(result.data)) {
-        setRarities(result.data);
-      }
-    } catch (err: any) {
-      console.error("Error fetching rarities:", err);
-      Swal.fire({
-        title: "Error!",
-        text: `Could not load item rarities: ${err.message}`,
-        icon: "error",
-        background: "#1C1E2D",
-        color: "#FFFFFF",
-      });
-    }
-  };
-
   useEffect(() => {
     fetchWeapons();
-    fetchRarities();
   }, []);
 
   const handleDeleteWeapon = async (weaponId: string) => {
@@ -242,27 +190,7 @@ export default function Page({}: Props) {
     setNewCaseItems(updatedItems);
   };
 
-  // This function updates both the rarity name for display and the rarity_id to be sent to the API
-  const handleRarityChange = (index: number, selectedRarity: Rarity) => {
-    const updatedItems = [...newCaseItems];
-    updatedItems[index].rarity = selectedRarity.name;
-    updatedItems[index].rarity_id = selectedRarity.id;
-    setNewCaseItems(updatedItems);
-  };
-
-
   const addNewCaseForm = () => {
-    const defaultRarity = rarities.find(r => r.name === "Common") || rarities[0];
-    if (!defaultRarity) {
-        Swal.fire({
-            title: "Error!",
-            text: "Cannot add new item because rarities have not loaded yet.",
-            icon: "error",
-            background: "#1C1E2D",
-            color: "#FFFFFF",
-        });
-        return;
-    }
     setNewCaseItems([
       ...newCaseItems,
       {
@@ -270,8 +198,6 @@ export default function Page({}: Props) {
         price: "",
         description: "",
         probability: "",
-        rarity: defaultRarity.name,
-        rarity_id: defaultRarity.id,
         image: "",
       },
     ]);
@@ -285,10 +211,26 @@ export default function Page({}: Props) {
       return;
     }
 
+    // Validate all items have required fields
+    const invalidItems = newCaseItems.filter(
+      item => !item.name || !item.price || !item.image
+    );
+    
+    if (invalidItems.length > 0) {
+      Swal.fire({
+        title: "Validation Error",
+        text: "Please fill in all required fields (Name, Price, and Image) for all items.",
+        icon: "warning",
+        background: "#1C1E2D",
+        color: "#FFFFFF",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     const submissionPromises = newCaseItems.map((item) => {
-      if (!item.name || !item.price || !item.image || !item.rarity_id) {
+      if (!item.name || !item.price || !item.image) {
         return Promise.resolve(null);
       }
 
@@ -301,10 +243,8 @@ export default function Page({}: Props) {
         price: isNaN(numericPrice) ? 0 : numericPrice,
         probability: isNaN(numericProb) ? null : numericProb,
         image: item.image,
-        rarity_id: item.rarity_id, // This is the crucial part that sends the ID
       };
 
-      // --- DEBUGGING: Check the payload in the browser console ---
       console.log("Sending payload to API:", payload);
 
       return fetch(
@@ -347,15 +287,12 @@ export default function Page({}: Props) {
             background: "#1C1E2D",
             color: "#FFFFFF",
         });
-        const defaultRarity = rarities.find(r => r.name === "Common") || rarities[0];
         setNewCaseItems([
           {
             name: "",
             price: "",
             description: "",
             probability: "",
-            rarity: defaultRarity.name,
-            rarity_id: defaultRarity.id,
             image: "",
           },
         ]);
@@ -393,22 +330,15 @@ export default function Page({}: Props) {
             Weapons Database
           </h3>
           <span className="text-sm text-[#6F7083]">
-            {weapons.length} Weapons
+            {filteredWeapons.length} Weapons
           </span>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4 relative z-10">
+        <div className="grid grid-cols-1 gap-3 mb-4 relative z-10">
           <Input
             type="search"
             placeholder="Search"
-            className="md-col-span-2"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-          />
-          <Dropdown
-            btnClass="md:col-span-1"
-            placeholder="All Rarities"
-            items={[{ id: "all", name: "All Rarities", color: "#FFFFFF" }, ...rarities]}
-            leftIcon={<Filter color="white" size={20} strokeWidth={1.5} />}
           />
         </div>
 
@@ -418,11 +348,17 @@ export default function Page({}: Props) {
           <p className="text-red-500 text-center">{error}</p>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3 gap-2 md:gap-4">
-            {weapons.map((item) => (
-              <Link href={`/dashboard/weapons/${item.id}`} key={item.id}>
-                <WeaponsCollection item={item} onDelete={handleDeleteWeapon} />
-              </Link>
-            ))}
+            {filteredWeapons.length > 0 ? (
+              filteredWeapons.map((item) => (
+                <Link href={`/dashboard/weapons/${item.id}`} key={item.id}>
+                  <WeaponsCollection item={item} onDelete={handleDeleteWeapon} />
+                </Link>
+              ))
+            ) : (
+              <div className="col-span-full text-center py-8">
+                <p className="text-white/60">No weapons found matching "{search}"</p>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -431,7 +367,7 @@ export default function Page({}: Props) {
         <div className="bg-white/6 rounded-2xl md:rounded-[20px] p-4 md:p-5 lg:p-6">
           <div className="flex items-center justify-between mb-3 md:mb-4 xl:mb-5">
             <h3 className="text-white text-base md:text-lg font-bold !leading-[130%]">
-              Create New Case
+              Create New Weapon
             </h3>
             <span className="text-sm text-[#6F7083]">
               <span className="text-primary">0.00%</span> total
@@ -513,14 +449,6 @@ export default function Page({}: Props) {
                     />
                   </div>
                 </div>
-                <Dropdown
-                  btnClass="md:col-span-1"
-                  placeholder={item.rarity}
-                  onSelect={(selectedItem) =>
-                    handleRarityChange(index, selectedItem as Rarity)
-                  }
-                  items={rarities}
-                />
               </div>
             ))}
           </div>
@@ -530,7 +458,7 @@ export default function Page({}: Props) {
               className="w-full gap-1 px-1 font-normal md:font-semibold btn text-sm md:text-base bg-none min-h-11 md:min-h-13 shadow-none bg-primary rounded-xl !border-t !border-white/25 border-0"
             >
               <Plus color="white" size={21} strokeWidth={2} />
-              Add Case Items
+              Add More Items
             </button>
             <button
               onClick={handlePublish}

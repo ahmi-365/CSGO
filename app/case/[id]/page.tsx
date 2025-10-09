@@ -555,7 +555,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
         <div className="flex items-center gap-3">
           {incrementCout.map((item, index) => (
             <button
-              onClick={() => setActiveIncrementCount(item.count)}
+              // onClick={() => setActiveIncrementCount(item.count)}
               key={index}
               className="flex items-center justify-center rounded-full hover:scale-105 text-base text-white uppercase min-w-12 min-h-9 p-px text-shadow-[0_4p_ 4px_rgba(15,16,44,0.12)]"
               style={{
