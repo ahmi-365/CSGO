@@ -37,7 +37,15 @@ interface NewCaseItem {
   description: string;
   probability: string;
   rarity: string;
+  rarity_id: string; // This correctly holds the ID of the selected rarity
   image: string;
+}
+
+// Interface for Rarity data from the API
+interface Rarity {
+  id: string;
+  name: string;
+  color: string;
 }
 
 const getAuthData = () => {
@@ -52,17 +60,28 @@ export default function Page({}: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [newCaseItems, setNewCaseItems] = useState<NewCaseItem[]>([
-    {
-      name: "",
-      price: "",
-      description: "",
-      probability: "",
-      rarity: "Common",
-      image: "",
-    },
-  ]);
+  const [newCaseItems, setNewCaseItems] = useState<NewCaseItem[]>([]);
   const [search, setSearch] = useState("");
+  const [rarities, setRarities] = useState<Rarity[]>([]);
+
+  // Set initial form state only after rarities are fetched
+  useEffect(() => {
+    if (rarities.length > 0 && newCaseItems.length === 0) {
+      const defaultRarity = rarities.find(r => r.name === "Common") || rarities[0];
+      setNewCaseItems([
+        {
+          name: "",
+          price: "",
+          description: "",
+          probability: "",
+          rarity: defaultRarity.name,
+          rarity_id: defaultRarity.id,
+          image: "",
+        },
+      ]);
+    }
+  }, [rarities, newCaseItems.length]);
+
 
   const fetchWeapons = async () => {
     try {
@@ -110,8 +129,42 @@ export default function Page({}: Props) {
     }
   };
 
+  const fetchRarities = async () => {
+    try {
+      const authData = getAuthData();
+      const token = authData?.token;
+      if (!token) throw new Error("Authorization token not found.");
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/admin/rarities`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch rarities.");
+      }
+
+      const result = await response.json();
+      if (result.success && Array.isArray(result.data)) {
+        setRarities(result.data);
+      }
+    } catch (err: any) {
+      console.error("Error fetching rarities:", err);
+      Swal.fire({
+        title: "Error!",
+        text: `Could not load item rarities: ${err.message}`,
+        icon: "error",
+        background: "#1C1E2D",
+        color: "#FFFFFF",
+      });
+    }
+  };
+
   useEffect(() => {
     fetchWeapons();
+    fetchRarities();
   }, []);
 
   const handleDeleteWeapon = async (weaponId: string) => {
@@ -189,7 +242,27 @@ export default function Page({}: Props) {
     setNewCaseItems(updatedItems);
   };
 
+  // This function updates both the rarity name for display and the rarity_id to be sent to the API
+  const handleRarityChange = (index: number, selectedRarity: Rarity) => {
+    const updatedItems = [...newCaseItems];
+    updatedItems[index].rarity = selectedRarity.name;
+    updatedItems[index].rarity_id = selectedRarity.id;
+    setNewCaseItems(updatedItems);
+  };
+
+
   const addNewCaseForm = () => {
+    const defaultRarity = rarities.find(r => r.name === "Common") || rarities[0];
+    if (!defaultRarity) {
+        Swal.fire({
+            title: "Error!",
+            text: "Cannot add new item because rarities have not loaded yet.",
+            icon: "error",
+            background: "#1C1E2D",
+            color: "#FFFFFF",
+        });
+        return;
+    }
     setNewCaseItems([
       ...newCaseItems,
       {
@@ -197,7 +270,8 @@ export default function Page({}: Props) {
         price: "",
         description: "",
         probability: "",
-        rarity: "Common",
+        rarity: defaultRarity.name,
+        rarity_id: defaultRarity.id,
         image: "",
       },
     ]);
@@ -214,7 +288,7 @@ export default function Page({}: Props) {
     setIsSubmitting(true);
 
     const submissionPromises = newCaseItems.map((item) => {
-      if (!item.name || !item.price || !item.image) {
+      if (!item.name || !item.price || !item.image || !item.rarity_id) {
         return Promise.resolve(null);
       }
 
@@ -227,8 +301,11 @@ export default function Page({}: Props) {
         price: isNaN(numericPrice) ? 0 : numericPrice,
         probability: isNaN(numericProb) ? null : numericProb,
         image: item.image,
-        rarity: item.rarity,
+        rarity_id: item.rarity_id, // This is the crucial part that sends the ID
       };
+
+      // --- DEBUGGING: Check the payload in the browser console ---
+      console.log("Sending payload to API:", payload);
 
       return fetch(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/admin/weapons`,
@@ -247,30 +324,38 @@ export default function Page({}: Props) {
     try {
       const responses = await Promise.all(submissionPromises);
       let successCount = 0;
-      let errorMessages = [];
+      let errorMessages: string[] = [];
       for (const response of responses) {
         if (response && response.ok) {
           successCount++;
-        } else if (response && response.status === 422) {
-          const errorData = await response.json();
-          const fieldErrors = Object.values(errorData.errors).flat().join("\n");
-          errorMessages.push(fieldErrors);
+        } else if (response) {
+            const errorData = await response.json();
+            if (response.status === 422 && errorData.errors) {
+              const fieldErrors = Object.values(errorData.errors).flat().join("\n");
+              errorMessages.push(fieldErrors);
+            } else if (errorData.message) {
+              errorMessages.push(errorData.message);
+            }
         }
       }
 
       if (successCount > 0) {
-        Swal.fire(
-          "Success!",
-          `${successCount} weapon(s) created successfully!`,
-          "success"
-        );
+        Swal.fire({
+            title: "Success!",
+            text: `${successCount} weapon(s) created successfully!`,
+            icon: "success",
+            background: "#1C1E2D",
+            color: "#FFFFFF",
+        });
+        const defaultRarity = rarities.find(r => r.name === "Common") || rarities[0];
         setNewCaseItems([
           {
             name: "",
             price: "",
             description: "",
             probability: "",
-            rarity: "Common",
+            rarity: defaultRarity.name,
+            rarity_id: defaultRarity.id,
             image: "",
           },
         ]);
@@ -282,15 +367,19 @@ export default function Page({}: Props) {
           icon: "error",
           title: "Validation Errors",
           text: "Failed to create some weapons:\n" + errorMessages.join("\n\n"),
+          background: "#1C1E2D",
+          color: "#FFFFFF",
         });
       }
     } catch (error) {
       console.error("Error creating weapon:", error);
-      Swal.fire(
-        "Error!",
-        "An error occurred. Check the console for details.",
-        "error"
-      );
+      Swal.fire({
+        title: "Error!",
+        text: "An error occurred. Check the console for details.",
+        icon: "error",
+        background: "#1C1E2D",
+        color: "#FFFFFF",
+    });
     } finally {
       setIsSubmitting(false);
     }
@@ -318,7 +407,7 @@ export default function Page({}: Props) {
           <Dropdown
             btnClass="md:col-span-1"
             placeholder="All Rarities"
-            items={[{ name: "All Rarities" }]}
+            items={[{ id: "all", name: "All Rarities", color: "#FFFFFF" }, ...rarities]}
             leftIcon={<Filter color="white" size={20} strokeWidth={1.5} />}
           />
         </div>
@@ -428,15 +517,9 @@ export default function Page({}: Props) {
                   btnClass="md:col-span-1"
                   placeholder={item.rarity}
                   onSelect={(selectedItem) =>
-                    handleCaseItemChange(index, "rarity", selectedItem.name)
+                    handleRarityChange(index, selectedItem as Rarity)
                   }
-                  items={[
-                    { name: "Common", color: "#C0C4CE" },
-                    { name: "Uncommon", color: "#39FF67" },
-                    { name: "Rare", color: "#236DFF" },
-                    { name: "Epic", color: "#702AEC" },
-                    { name: "Legendary", color: "#FF8809" },
-                  ]}
+                  items={rarities}
                 />
               </div>
             ))}
