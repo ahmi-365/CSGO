@@ -407,7 +407,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
       <div className="relative z-1 overflow-hidden flex flex-col gap-y-2.5 py-6 bg-[#C4CEFF]/6 rounded-[20px] mb-5">
         {Array.from({ length: activeIncrementCount }).map((_, index) => (
           <motion.div
-            className="flex gap-3 relative -z-10"
+            className="flex justify-center gap-3 relative -z-10"
             animate={controls}
             key={index}
           >
