@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Input from "@/app/components/ui/Input"; // Make sure to import your Input component
+import Input from "@/app/components/ui/Input";
+import { CryptoItem } from "./WalletContent"; // Import the shared interface
 
-// --- Type Definitions for the API response ---
+// API response types
 interface Wallet {
   id: number;
   user_id: number;
@@ -19,84 +20,67 @@ interface ApiResponse {
   wallet: Wallet;
 }
 
-// --- Helper function to get the auth token from localStorage ---
+// Helper function to get the auth token
 const getAuthToken = () => {
   if (typeof window !== "undefined") {
     const auth = localStorage.getItem("auth");
     if (auth) {
       try {
-        const parsed = JSON.parse(auth);
-        return parsed.token;
+        return JSON.parse(auth).token;
       } catch (e) {
-        console.error("Error parsing auth data from localStorage:", e);
+        console.error("Error parsing auth data:", e);
       }
     }
   }
   return null;
 };
 
-interface Notes {
-  des: string;
-}
+// Component Props
+type Props = {
+  selectedCrypto: CryptoItem | null;
+};
 
-type Props = {};
-
-export default function Bitcoin({}: Props) {
-  const notes: Notes[] = [
-    {
-      des: "Only send Bitcoin to this address",
-    },
-    {
-      des: "Minimum deposit: 0.0001 BTC",
-    },
-    {
-      des: "Requires 3 network confirmations",
-    },
-    {
-      des: "Deposits are automatically credited after confirmation",
-    },
-  ];
-
-  // --- State Management ---
+export default function Deposit({ selectedCrypto }: Props) {
   const [is_copied, set_is_copied] = useState(false);
-  const [amount, setAmount] = useState(""); // --- State for the amount input ---
+  const [amount, setAmount] = useState("");
   const [walletData, setWalletData] = useState<Wallet | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // This effect runs whenever the selectedCrypto prop changes
   useEffect(() => {
     const generateWalletAddress = async () => {
+      if (!selectedCrypto) return;
+
       setLoading(true);
       setError(null);
+      setWalletData(null); // Reset previous wallet data
+
       try {
         const token = getAuthToken();
-        if (!token) {
+        if (!token)
           throw new Error("Authentication error. Please log in again.");
-        }
 
         const apiUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/wallet/generate`;
-
         const response = await fetch(apiUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ currency: "btc" }),
+          body: JSON.stringify({
+            currency: selectedCrypto.currency.toLowerCase(),
+          }),
         });
 
-        if (response.status === 401) {
+        if (response.status === 401)
           throw new Error("Your session has expired. Please log in again.");
-        }
-
-        if (!response.ok) {
+        if (!response.ok)
           throw new Error(
-            "Failed to generate a wallet address. Please try again later."
+            `Failed to generate a wallet address for ${selectedCrypto.name}.`
           );
-        }
 
         const result: ApiResponse = await response.json();
-
         if (result.status && result.wallet) {
           setWalletData(result.wallet);
         } else {
@@ -104,31 +88,42 @@ export default function Bitcoin({}: Props) {
         }
       } catch (err: any) {
         setError(err.message);
-        console.error("Failed to fetch wallet address:", err);
+        console.error(
+          `Failed to fetch ${selectedCrypto.name} wallet address:`,
+          err
+        );
       } finally {
         setLoading(false);
       }
     };
 
     generateWalletAddress();
-  }, []);
+  }, [selectedCrypto]); // Re-run effect when selectedCrypto changes
 
   const handleCopy = (address: string | null) => {
     if (!address) return;
-
     navigator.clipboard.writeText(address).then(() => {
       set_is_copied(true);
-      setTimeout(() => {
-        set_is_copied(false);
-      }, 3000);
+      setTimeout(() => set_is_copied(false), 3000);
     });
   };
+
+  // Conditional rendering based on state
+  if (!selectedCrypto) {
+    return (
+      <div className="flex justify-center items-center p-10">
+        <p className="text-white/70">
+          Select a cryptocurrency to get deposit address.
+        </p>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
       <div className="flex justify-center items-center p-10">
         <p className="text-white/70 animate-pulse">
-          Generating your Bitcoin deposit address...
+          Generating your {selectedCrypto.name} deposit address...
         </p>
       </div>
     );
@@ -142,21 +137,28 @@ export default function Bitcoin({}: Props) {
     );
   }
 
+  const notes = [
+    {
+      des: `Only send ${selectedCrypto.name} (${selectedCrypto.currency}) to this address`,
+    },
+    { des: `Minimum deposit: 0.0001 ${selectedCrypto.currency}` },
+    { des: "Requires 3 network confirmations" },
+    { des: "Deposits are automatically credited after confirmation" },
+  ];
+
   return (
     <div>
-      {/* --- RE-ADDED AMOUNT INPUT FIELD --- */}
       <Input
         className="mb-4 md:mb-5"
         type="text"
-        label="Amount (BTC)"
-        placeholder="Min: 0.0001 BTC"
+        label={`Amount (${selectedCrypto.currency})`}
+        placeholder={`Min: 0.0001 ${selectedCrypto.currency}`}
         value={amount}
         onChange={(e) => setAmount(e.target.value)}
       />
-
       <div className="px-4 py-3 rounded-xl border border-solid border-[#39FF67]/10 bg-[#39FF67]/10 mb-3 md:mb-4 lg:mb-5">
         <h4 className="text-lg text-white font-satoshi font-bold !leading-[120%] mb-3 md:mb-4">
-          Your Bitcoin Deposit Address
+          Your {selectedCrypto.name} Deposit Address
         </h4>
         <div className="bg-[#171925]/25 px-3 py-4 rounded-xl mb-3 flex items-center justify-between">
           <p className="text-sm text-[#AEB0BDCC]/80 font-satoshi font-medium line-clamp-1 !leading-[110%] break-all">
@@ -180,11 +182,10 @@ export default function Bitcoin({}: Props) {
             </h4>
           </div>
           <h4 className="capitalize text-sm xl:text-base font-medium font-satoshi text-[#39FF67] line-clamp-1 !leading-[130%]">
-            Network: {walletData?.chain || "Bitcoin"}
+            Network: {walletData?.chain || selectedCrypto.currency}
           </h4>
         </div>
       </div>
-
       <div className="py-3 px-4 rounded-xl border border-solid border-[#FF8809]/10 bg-[#FF8809]/10 mb-3 md:mb-4 lg:mb-5">
         <h4 className="flex items-center gap-2 lg:gap-2.5 text-[#FF8809] text-lg font-satoshi font-bold !leading-[110%] mb-2 md:mb-3">
           <svg
@@ -234,7 +235,6 @@ export default function Bitcoin({}: Props) {
           </div>
         ))}
       </div>
-
       <button className="grow px-4.5 min-h-10 md:min-h-13 flex items-center justify-center capitalize bg-white/8 text-base font-medium !leading-[130%] rounded-xl hover:text-white hover:bg-primary w-full">
         View Deposit History
       </button>

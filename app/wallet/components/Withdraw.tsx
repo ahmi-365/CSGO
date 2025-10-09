@@ -2,15 +2,12 @@
 
 import Input from "@/app/components/ui/Input";
 import React, { useState, useEffect, useMemo } from "react";
+import { CryptoItem } from "./WalletContent"; // Import the shared interface
 
-// --- Type Definitions ---
-interface Notes {
-  des: string;
-}
-
+// Type Definitions
 interface Wallet {
   id: number;
-  account_id: string; // This is the senderAccountId
+  account_id: string;
   balance: string;
   chain: string;
 }
@@ -21,7 +18,6 @@ interface WalletApiResponse {
   wallet: Wallet;
 }
 
-// --- Helper function to get auth token ---
 const getAuthToken = () => {
   if (typeof window !== "undefined") {
     const auth = localStorage.getItem("auth");
@@ -36,34 +32,34 @@ const getAuthToken = () => {
   return null;
 };
 
-// --- Static Data ---
-const notes: Notes[] = [
-  { des: "Double-check the withdrawal address" },
-  { des: "Withdrawals cannot be reversed" },
-  { des: "Minimum withdrawal: 0.001 BTC" },
-  { des: "Processing time: 10-30 minutes" },
-  { des: "Network fee: 0.0005 BTC" },
-];
+// Component Props
+type Props = {
+  selectedCrypto: CryptoItem | null;
+};
 
-const NETWORK_FEE = 0.0005;
-const MIN_WITHDRAWAL = 0.001;
-
-type Props = {};
-
-export default function BitcoinWithdraw({}: Props) {
-  // --- State Management ---
+export default function Withdraw({ selectedCrypto }: Props) {
   const [amount, setAmount] = useState("");
   const [recipientAddress, setRecipientAddress] = useState("");
   const [userWallet, setUserWallet] = useState<Wallet | null>(null);
-  const [btcPrice, setBtcPrice] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
 
+  // This fee and min withdrawal should ideally come from an API
+  const NETWORK_FEE = 0.0005;
+  const MIN_WITHDRAWAL = 0.001;
+
   useEffect(() => {
-    const fetchInitialData = async () => {
+    const fetchWalletData = async () => {
+      if (!selectedCrypto) {
+        setInitialLoading(false);
+        return;
+      }
+
       setInitialLoading(true);
+      setError(null);
+      setUserWallet(null);
       const token = getAuthToken();
       if (!token) {
         setError("You are not logged in.");
@@ -72,35 +68,25 @@ export default function BitcoinWithdraw({}: Props) {
       }
 
       try {
-        const [walletRes, priceRes] = await Promise.all([
-          fetch(
-            `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/wallet/get?currency=btc`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          ),
-          fetch(
-            `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/wallet/list/prices`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          ),
-        ]);
+        const walletRes = await fetch(
+          `${
+            process.env.NEXT_PUBLIC_API_BASE_URL
+          }/api/wallet/get?currency=${selectedCrypto.currency.toLowerCase()}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
 
         if (walletRes.ok) {
           const walletResult: WalletApiResponse = await walletRes.json();
           if (walletResult.status) setUserWallet(walletResult.wallet);
+          else
+            throw new Error(
+              walletResult.message ||
+                `Could not fetch ${selectedCrypto.name} wallet.`
+            );
         } else {
-          throw new Error("Could not fetch user wallet details.");
-        }
-
-        if (priceRes.ok) {
-          const priceResult = await priceRes.json();
-          if (priceResult.status && priceResult.prices.data.BTC) {
-            setBtcPrice(priceResult.prices.data.BTC.price);
-          }
-        } else {
-          throw new Error("Could not fetch cryptocurrency prices.");
+          throw new Error(
+            `Could not fetch ${selectedCrypto.name} wallet details.`
+          );
         }
       } catch (err: any) {
         setError(err.message);
@@ -109,28 +95,44 @@ export default function BitcoinWithdraw({}: Props) {
       }
     };
 
-    fetchInitialData();
-  }, []);
+    fetchWalletData();
+  }, [selectedCrypto]);
 
   const summary = useMemo(() => {
     const amountNum = parseFloat(amount) || 0;
-    const usdValue = (amountNum * (btcPrice || 0)).toFixed(2);
+    const currentPrice = parseFloat(
+      selectedCrypto?.value.replace(/,/g, "") || "0"
+    );
+    const usdValue = (amountNum * currentPrice).toFixed(2);
     const youWillReceive =
       amountNum > 0 ? (amountNum - NETWORK_FEE).toFixed(8) : "0";
 
     return [
-      { name: "Amount:", des: `${amountNum.toFixed(8)} BTC` },
-      { name: "Network Fee:", des: `${NETWORK_FEE.toFixed(8)} BTC` },
-      { name: "USD Value:", des: btcPrice ? `$${usdValue}` : "N/A" },
-      { name: "You'll Receive:", des: `${youWillReceive} BTC` },
+      {
+        name: "Amount:",
+        des: `${amountNum.toFixed(8)} ${selectedCrypto?.currency}`,
+      },
+      {
+        name: "Network Fee:",
+        des: `${NETWORK_FEE.toFixed(8)} ${selectedCrypto?.currency}`,
+      },
+      { name: "USD Value:", des: currentPrice ? `$${usdValue}` : "N/A" },
+      {
+        name: "You'll Receive:",
+        des: `${youWillReceive} ${selectedCrypto?.currency}`,
+      },
     ];
-  }, [amount, btcPrice]);
+  }, [amount, selectedCrypto, NETWORK_FEE]);
 
   const handleWithdraw = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
     setSuccessMessage(null);
 
+    if (!selectedCrypto) {
+      setError("Please select a cryptocurrency.");
+      return;
+    }
     if (!userWallet?.account_id) {
       setError("Your wallet account ID is missing. Please refresh.");
       return;
@@ -139,13 +141,16 @@ export default function BitcoinWithdraw({}: Props) {
       setError("Please enter a withdrawal address.");
       return;
     }
+
     const amountNum = parseFloat(amount);
     if (isNaN(amountNum) || amountNum <= 0) {
       setError("Please enter a valid amount.");
       return;
     }
     if (amountNum < MIN_WITHDRAWAL) {
-      setError(`The minimum withdrawal amount is ${MIN_WITHDRAWAL} BTC.`);
+      setError(
+        `The minimum withdrawal amount is ${MIN_WITHDRAWAL} ${selectedCrypto.currency}.`
+      );
       return;
     }
     if (amountNum > parseFloat(userWallet.balance)) {
@@ -154,7 +159,6 @@ export default function BitcoinWithdraw({}: Props) {
     }
 
     setIsSubmitting(true);
-
     try {
       const token = getAuthToken();
       const response = await fetch(
@@ -171,18 +175,15 @@ export default function BitcoinWithdraw({}: Props) {
             amount: amountNum,
             fee: NETWORK_FEE,
             compliant: false,
-            senderNote: "User withdrawal",
+            senderNote: `User withdrawal for ${selectedCrypto.currency}`,
           }),
         }
       );
-
       const result = await response.json();
-
-      if (!response.ok) {
+      if (!response.ok)
         throw new Error(
           result.message || "Withdrawal failed. Please try again."
         );
-      }
 
       setSuccessMessage(
         result.message || "Withdrawal request submitted successfully!"
@@ -196,29 +197,45 @@ export default function BitcoinWithdraw({}: Props) {
     }
   };
 
+  if (!selectedCrypto) {
+    return (
+      <div className="flex justify-center items-center p-10">
+        <p className="text-white/70">Select a cryptocurrency to withdraw.</p>
+      </div>
+    );
+  }
   if (initialLoading) {
     return (
       <p className="text-center text-white/70 animate-pulse">
-        Loading wallet details...
+        Loading {selectedCrypto.name} wallet details...
       </p>
     );
   }
+
+  const notes = [
+    { des: "Double-check the withdrawal address" },
+    { des: "Withdrawals cannot be reversed" },
+    { des: `Minimum withdrawal: ${MIN_WITHDRAWAL} ${selectedCrypto.currency}` },
+    { des: "Processing time: 10-30 minutes" },
+    { des: `Network fee: ${NETWORK_FEE} ${selectedCrypto.currency}` },
+  ];
 
   return (
     <form onSubmit={handleWithdraw}>
       <div className="flex items-center justify-between flex-wrap gap-2 mb-2 md:mb-3">
         <h3 className="text-lg md:text-xl lg:text-[22px] text-white font-satoshi font-bold !leading-[120%]">
-          Withdraw Bitcoin
+          Withdraw {selectedCrypto.name}
         </h3>
         <p className="text-sm text-white/60">
-          Balance: {parseFloat(userWallet?.balance ?? "0").toFixed(8)} BTC
+          Balance: {parseFloat(userWallet?.balance ?? "0").toFixed(8)}{" "}
+          {selectedCrypto.currency}
         </p>
       </div>
       <Input
         className="mb-3 md:mb-4 lg:mb-5"
         type="number"
-        label="Amount (BTC)"
-        placeholder={`Min: ${MIN_WITHDRAWAL} BTC`}
+        label={`Amount (${selectedCrypto.currency})`}
+        placeholder={`Min: ${MIN_WITHDRAWAL} ${selectedCrypto.currency}`}
         value={amount}
         onChange={(e) => setAmount(e.target.value)}
         step="0.00000001"
@@ -227,10 +244,11 @@ export default function BitcoinWithdraw({}: Props) {
         className="mb-3 md:mb-4 lg:mb-5"
         type="text"
         label="Withdrawal Address"
-        placeholder="Enter Bitcoin address"
+        placeholder={`Enter ${selectedCrypto.name} address`}
         value={recipientAddress}
         onChange={(e) => setRecipientAddress(e.target.value)}
       />
+
       <div className="px-4 py-3 rounded-xl border border-solid border-[#39FF67]/10 bg-white/4 mb-4 md:mb-5">
         <h4 className="text-lg text-white font-satoshi font-bold !leading-[120%] mb-3 md:mb-4">
           Transaction Summary
@@ -309,7 +327,7 @@ export default function BitcoinWithdraw({}: Props) {
         disabled={isSubmitting || initialLoading}
         className="w-full px-4.5 min-h-10 md:min-h-13 flex items-center justify-center capitalize bg-white/8 text-base font-medium !leading-[130%] rounded-xl hover:text-white hover:bg-primary disabled:bg-gray-600 disabled:cursor-not-allowed"
       >
-        {isSubmitting ? "Processing..." : "Withdraw BTC"}
+        {isSubmitting ? "Processing..." : `Withdraw ${selectedCrypto.currency}`}
       </button>
     </form>
   );
