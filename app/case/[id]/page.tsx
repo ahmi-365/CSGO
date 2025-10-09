@@ -126,7 +126,9 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
     }
   }, [BASE_URL, crateId]);
 
-  useEffect(() => {
+ 
+
+   useEffect(() => {
     if (!crateId) return;
 
     const fetchCrateData = async () => {
@@ -145,12 +147,10 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
           color2: getRarityColor2(item.rarity),
         }));
         
-        // Create a longer array by repeating items for smooth infinite scroll effect
-        const repeatedItems = [];
-        for (let i = 0; i < 10; i++) {
-          repeatedItems.push(...items);
-        }
-        setSpinnerItems(repeatedItems);
+        // The loop for repeating items has been removed.
+        // Now, we directly set the spinner items without repetition.
+        setSpinnerItems(items); 
+
       } catch (err) {
         setError(err instanceof Error ? err.message : "An error occurred");
       } finally {
