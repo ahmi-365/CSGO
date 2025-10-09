@@ -46,6 +46,21 @@ interface FairnessData {
   verify_url: string;
 }
 
+interface SpinIconItem {
+  icon: JSX.Element | string;
+  bgColor: string;
+  textColor: string | null;
+}
+
+const randomColors = [
+  '#39FF67', '#FFD700', '#4FC8FF', '#C324E7', '#E94444', 
+  '#FF8809', '#347BFF', '#ED164C', '#24E9FF', '#702AEC'
+];
+
+const getRandomColor = () => {
+  return randomColors[Math.floor(Math.random() * randomColors.length)];
+};
+
 const getAuthData = () => {
   if (typeof window === "undefined") return null;
   const authData = localStorage.getItem("auth");
@@ -64,6 +79,8 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
   const [selectedSpins, setSelectedSpins] = useState<number[]>([]);
 
   const [spinnerItems, setSpinnerItems] = useState<StremItem[]>([]);
+  const [allCases, setAllCases] = useState<CaseItem[]>([]);
+  const [casesLoading, setCasesLoading] = useState(true);
 
   const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "YOUR_BASE_URL_HERE";
 
@@ -75,6 +92,39 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
     };
     resolveParams();
   }, [params]);
+
+  // Fetch all cases for the "All Cases" section
+  useEffect(() => {
+    const fetchAllCases = async () => {
+      try {
+        setCasesLoading(true);
+        const response = await fetch(`${BASE_URL}/api/cases`);
+        if (!response.ok) throw new Error("Failed to fetch cases");
+        const data = await response.json();
+        
+        // Transform and filter out the current crate
+        const transformedCases: CaseItem[] = data.crates.data
+          .filter((crate: any) => crate.id !== crateId) // Exclude current crate
+          .map((crate: any) => ({
+            id: crate.id,
+            img: crate.image,
+            price: `${parseFloat(crate.price).toFixed(2)}`,
+            des: crate.name,
+            color: crate.rarity?.color || getRandomColor(),
+          }));
+        
+        setAllCases(transformedCases);
+      } catch (err) {
+        console.error('Error fetching all cases:', err);
+      } finally {
+        setCasesLoading(false);
+      }
+    };
+
+    if (crateId) {
+      fetchAllCases();
+    }
+  }, [BASE_URL, crateId]);
 
   useEffect(() => {
     if (!crateId) return;
@@ -89,13 +139,18 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
 
         const items = data.crate.items.map((item: CrateItem) => ({
           img: item.image,
-          price: `$${parseFloat(item.price).toFixed(3)}`,
+          price: `${parseFloat(item.price).toFixed(3)}`,
           name: item.name,
           color: getRarityColor(item.rarity),
           color2: getRarityColor2(item.rarity),
         }));
-        // Array ko 15 baar repeat karein taake loop bohot smooth lage
-        setSpinnerItems(Array(15).fill(items).flat());
+        
+        // Create a longer array by repeating items for smooth infinite scroll effect
+        const repeatedItems = [];
+        for (let i = 0; i < 10; i++) {
+          repeatedItems.push(...items);
+        }
+        setSpinnerItems(repeatedItems);
       } catch (err) {
         setError(err instanceof Error ? err.message : "An error occurred");
       } finally {
@@ -182,7 +237,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
   const handleOpenCrate = async () => {
     if (spinning) return;
     setSpinning(true);
-    // Spinner ko shuruaati position par reset karein
+    // Reset spinner to initial position
     await controls.start({ x: 0, transition: { duration: 0 } });
 
     const authData = getAuthData();
@@ -209,55 +264,49 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
         },
         body: JSON.stringify({ client_seed }),
       });
-    if (!response.ok) {
-  const errorData = await response.json();
-  const msg =
-    errorData.error ||
-    errorData.message ||
-    "Failed to open the crate. Please try again.";
-  throw new Error(msg);
-}
-
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        const msg =
+          errorData.error ||
+          errorData.message ||
+          "Failed to open the crate. Please try again.";
+        throw new Error(msg);
+      }
 
       const result = await response.json();
       const wonWeapon: CrateItem = result.result.weapon;
       const fairnessData: FairnessData = result.result.fairness;
 
-      // --- YAHAN SE BADLAV SHURU HOTE HAIN ---
+      // Get roll value from backend
+      const roll = fairnessData.roll;
 
-      // 1. Backend se 'roll' value lein
-      const roll = fairnessData.roll; // Yeh 0 se 1 ke beech ka number hai (e.g., 0.100636)
-
-      // 2. Kuch full spins add karein taaki animation accha lage
-      const minFullRevolutions = 4; // Kam se kam 4 baar poora ghumega
-      const cardWidthWithGap = 192; // Sunishchit karein ki yeh aapke CSS se match karta hai
+      // Add minimum full revolutions for smooth animation
+      const minFullRevolutions = 4;
+      const cardWidthWithGap = 192;
 
       const originalItemsCount = crateData?.items.length || 0;
       if (originalItemsCount === 0)
         throw new Error("Case items not loaded correctly.");
 
-      // Ek poore reel (jismein sabhi original items ek baar aate hain) ki kul chaudai
+      // Width of one complete reel
       const widthOfOneReel = originalItemsCount * cardWidthWithGap;
 
-      // Kam se kam revolutions ke liye doori
+      // Distance for minimum revolutions
       const revolutionsDistance = minFullRevolutions * widthOfOneReel;
 
-      // Roll ke aadhar par aakhri revolution mein tay ki jaane wali doori
-      // Hum roll ko ek poore reel ki chaudai se guna karenge taaki woh us reel par sahi jagah ruke
+      // Final position based on roll
       const finalPositionBasedOnRoll = roll * widthOfOneReel;
 
-      // 3. Screen ke center ke liye adjustment calculate karein
+      // Adjustment for screen center
       const screenCenter = window.innerWidth / 2;
       const centerAdjustment = screenCenter - cardWidthWithGap / 2;
 
-      // 4. Kul doori calculate karein
-      // Yeh doori = (full revolutions ki doori) + (roll ke aadhar par aakhri doori) - (center mein laane ka adjustment)
+      // Calculate total distance
       const finalX =
         -(revolutionsDistance + finalPositionBasedOnRoll) + centerAdjustment;
 
-      // --- BADLAV YAHAN KHATAM HOTE HAIN ---
-
-      // Animation ko 7 second ke liye start karein
+      // Start animation for 7 seconds
       controls.start({
         x: finalX,
         transition: { duration: 7, ease: [0.22, 1, 0.36, 1] },
@@ -305,6 +354,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
       setSpinning(false);
     }
   };
+
   const incrementCout: IncreamentCoutItem[] = [
     {
       count: 2,
@@ -326,16 +376,6 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
     { icon: <Sparkles />, bgColor: "#FFD700", textColor: null },
     { icon: <Rocket />, bgColor: "#7436E1", textColor: null },
   ];
-
-  const caseItems: CaseItem[] =
-    crateData?.items.map((item) => ({
-      id: item.id,
-      img: item.image,
-      price: `$${parseFloat(item.price).toFixed(2)}`,
-      des: item.name,
-      color: getRarityColor(item.rarity),
-      btn: item.rarity || "Common",
-    })) || [];
 
   if (loading)
     return (
@@ -542,20 +582,23 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
       </div>
 
       <div className="flex flex-col gap-y-5 mt-6">
-        <h4 className="text-2xl">{crateData.name} - Collection Items</h4>
+        <h4 className="text-2xl">All Cases</h4>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          {caseItems.map((item, index) => (
-            <BuyCard item={item} key={index} path={`/case/${crateData.id}`} />
-          ))}
+          {casesLoading ? (
+            [...Array(10)].map((_, index) => (
+              <div key={index} className="animate-pulse bg-[#1C1E2D]/50 border border-white/10 rounded-2xl h-64"></div>
+            ))
+          ) : allCases.length > 0 ? (
+            allCases.map((item, index) => (
+              <BuyCard item={item} key={index} path={`/case/${item.id}`} />
+            ))
+          ) : (
+            <div className="col-span-full text-center py-12 text-gray-400">
+              No cases available at the moment.
+            </div>
+          )}
         </div>
       </div>
     </PageContainer>
   );
-}
-
-// Add missing interface
-interface SpinIconItem {
-  icon: JSX.Element | string;
-  bgColor: string;
-  textColor: string | null;
 }
