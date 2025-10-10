@@ -5,28 +5,53 @@ import { useRouter, useParams } from 'next/navigation';
 import PageContainer from '@/app/components/PageContainer';
 
 interface WeaponDetail {
-    id?: number;
-    user_id?: number;
-    crate_id?: string;
-    weapon_id?: string;
-    price_paid?: string;
-    created_at?: string;
-    crate?: {
-        id?: string;
-        name?: string;
-        image?: string;
-        price?: string;
-        rarity_id?: string;
+    id: number;
+    user_id: number;
+    crate_open_id: number;
+    base_weapon_id: string | null;
+    acquired_at: string;
+    crate_id: string | null;
+    weapon_id: string | null;
+    condition: string | null;
+    wear: string | null;
+    is_sold: boolean;
+    price: string | null;
+    trade_locked_until: string | null;
+    added_at: string;
+    created_at: string;
+    updated_at: string;
+    base_weapon: null;
+    crate_open: {
+        id: number;
+        user_id: number;
+        crate_id: string;
+        weapon_id: string;
+        client_seed: string;
+        server_seed: string;
+        server_seed_hash: string;
+        nonce: number;
+        probability_used: number;
+        price_paid: string;
+        created_at: string;
+        updated_at: string;
+        weapon: {
+            id: string;
+            name: string;
+            description: string;
+            image: string;
+            rarity: string | null;
+            price: string;
+            probability: number;
+            created_at: string;
+            updated_at: string;
+        };
     };
-    weapon?: {
-        id?: string;
-        name?: string;
-        description?: string;
-        image?: string;
-        rarity?: string | null;
-        price?: string;
-        probability?: number;
-    };
+}
+
+interface ApiResponse {
+    status: boolean;
+    message: string;
+    data: WeaponDetail;
 }
 
 export default function InventoryDetailPage() {
@@ -44,14 +69,43 @@ export default function InventoryDetailPage() {
         }
     }, [id]);
 
+    const getAuthToken = () => {
+        if (typeof window === 'undefined') return null;
+        const authData = localStorage.getItem('auth');
+        if (!authData) return null;
+        try {
+            const parsed = JSON.parse(authData);
+            return parsed.token;
+        } catch {
+            return null;
+        }
+    };
+
+    const getHeaders = () => {
+        const token = getAuthToken();
+        return {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` })
+        };
+    };
+
     const fetchWeaponDetail = async () => {
         try {
             setLoading(true);
-            const response = await fetch(`${baseUrl}/api/crates/history/${id}`);
-            const data = await response.json();
-            setWeaponData(data);
+            const response = await fetch(`${baseUrl}/api/inventory/${id}`, {
+                headers: getHeaders()
+            });
+            const data: ApiResponse = await response.json();
+            
+            if (data.status && data.data) {
+                setWeaponData(data.data);
+            } else {
+                console.error('Error fetching weapon detail:', data.message);
+                setWeaponData(null);
+            }
         } catch (error) {
             console.error('Error fetching weapon detail:', error);
+            setWeaponData(null);
         } finally {
             setLoading(false);
         }
@@ -87,20 +141,18 @@ export default function InventoryDetailPage() {
         
         setIsConfirming(true);
         try {
-            // API call to confirm sale would go here
             const response = await fetch(`${baseUrl}/api/inventory/sell`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: getHeaders(),
                 body: JSON.stringify({
                     item_id: weaponData.id,
                 }),
             });
 
             if (response.ok) {
-                // Redirect to inventory or show success message
                 router.push('/inventory');
+            } else {
+                console.error('Failed to sell item');
             }
         } catch (error) {
             console.error('Error confirming sale:', error);
@@ -110,7 +162,7 @@ export default function InventoryDetailPage() {
     };
 
     const handleCancel = () => {
-        router.push('/inventory');
+        router.push('/?type=inventory');
     };
 
     if (loading) {
@@ -123,7 +175,7 @@ export default function InventoryDetailPage() {
         );
     }
 
-    if (!weaponData || !weaponData.weapon) {
+    if (!weaponData || !weaponData.crate_open?.weapon) {
         return (
             <PageContainer>
                 <div className="min-h-[calc(100vh-65px)] w-full flex items-center justify-center">
@@ -133,9 +185,10 @@ export default function InventoryDetailPage() {
         );
     }
 
-    const marketValue = parseFloat(weaponData.weapon?.price || '0');
+    const weapon = weaponData.crate_open.weapon;
+    const marketValue = parseFloat(weapon.price || '0');
     const youReceive = calculateYouReceive(marketValue);
-    const rarityColor = getRarityColor(weaponData.weapon?.rarity);
+    const rarityColor = getRarityColor(weapon.rarity);
     
     return (
         <PageContainer>
@@ -146,7 +199,7 @@ export default function InventoryDetailPage() {
                             className="relative z-1 rounded-3xl overflow-hidden group cursor-pointer w-full" 
                             style={{ 
                                 border: "double 1px transparent", 
-                                backgroundImage: getRarityGradient(weaponData.weapon.rarity), 
+                                backgroundImage: getRarityGradient(weapon.rarity), 
                                 backgroundOrigin: "border-box", 
                                 backgroundClip: "content-box, border-box" 
                             }}
@@ -158,8 +211,8 @@ export default function InventoryDetailPage() {
                             />
                             <div className="pt-5 pb-10 flex flex-col items-center">
                                 <img 
-                                    src={weaponData.weapon?.image || '/img/inventor/inventory-1.png'} 
-                                    alt={weaponData.weapon?.name || 'Weapon'} 
+                                    src={weapon.image || '/img/inventor/inventory-1.png'} 
+                                    alt={weapon.name || 'Weapon'} 
                                     className="size-70 lg:w-95 lg:h-96.5 object-contain mx-auto pointer-events-none" 
                                     onError={(e) => {
                                         e.currentTarget.src = '/img/inventor/inventory-1.png';
@@ -178,10 +231,10 @@ export default function InventoryDetailPage() {
                     </div>
                     <div className="max-w-128 w-full pt-8 md:pt-17.5">
                         <h4 className='text-white text-xl md:text-2xl xl:text-3xl 2xl:text-[32px] font-bold !leading-[120%] mb-2 md:mb-3'>
-                            {weaponData.weapon?.name || 'Unknown Weapon'}
+                            {weapon.name || 'Unknown Weapon'}
                         </h4>
                         <p className='text-base font-medium text-[#6F7083]/80 !leading-[160%] mb-4 md:mb-8'>
-                            {weaponData.weapon?.description || 'Confirm sale of this item'}
+                            {weapon.description || 'Confirm sale of this item'}
                         </p>
                         <ul className='flex flex-col gap-3 mb-2 md:mb-3'>
                             <li className='text-sm font-medium !leading-[110%] bg-white/8 rounded-full py-3.5 md:py-4.5 px-5 flex items-center justify-between'>
@@ -225,25 +278,31 @@ export default function InventoryDetailPage() {
                                 <div className="flex justify-between text-white/60">
                                     <span>Rarity:</span>
                                     <span className="font-medium" style={{ color: rarityColor }}>
-                                        {weaponData.weapon?.rarity || 'Common'}
+                                        {weapon.rarity || 'Common'}
                                     </span>
                                 </div>
                                 <div className="flex justify-between text-white/60">
                                     <span>From Case:</span>
                                     <span className="font-medium text-white">
-                                        {weaponData.crate?.name || 'Unknown'}
+                                        {weaponData.crate_open.crate_id || 'Unknown'}
                                     </span>
                                 </div>
                                 <div className="flex justify-between text-white/60">
                                     <span>Acquired:</span>
                                     <span className="font-medium text-white">
-                                        {weaponData.created_at ? new Date(weaponData.created_at).toLocaleDateString() : 'N/A'}
+                                        {weaponData.acquired_at ? new Date(weaponData.acquired_at).toLocaleDateString() : 'N/A'}
                                     </span>
                                 </div>
                                 <div className="flex justify-between text-white/60">
                                     <span>Drop Chance:</span>
                                     <span className="font-medium text-white">
-                                        {weaponData.weapon?.probability ? (weaponData.weapon.probability * 100).toFixed(2) : '0.00'}%
+                                        {weapon.probability ? (weapon.probability * 100).toFixed(2) : '0.00'}%
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-white/60">
+                                    <span>Price Paid:</span>
+                                    <span className="font-medium text-white">
+                                        ${weaponData.crate_open.price_paid || '0.00'}
                                     </span>
                                 </div>
                             </div>

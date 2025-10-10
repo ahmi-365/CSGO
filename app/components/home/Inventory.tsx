@@ -12,41 +12,71 @@ type Props = {
     baseUrl?: string;
 }
 
-interface HistoryItem {
+interface InventoryItem {
     id: number;
-    crate: {
-        id: string;
-        name: string;
-        image: string;
-        price: string;
-    };
-    weapon: {
-        id: string;
-        name: string;
-        image: string;
-        price: string;
-        rarity: string | null;
-    };
+    user_id: number;
+    crate_open_id: number;
+    base_weapon_id: string | null;
+    acquired_at: string;
+    crate_id: string | null;
+    weapon_id: string | null;
+    condition: string | null;
+    wear: string | null;
+    is_sold: boolean;
+    price: string | null;
+    trade_locked_until: string | null;
+    added_at: string;
     created_at: string;
+    updated_at: string;
+    base_weapon: {
+        id: string;
+        name: string;
+        description: string;
+        image: string;
+        rarity: string | null;
+        price: string;
+        probability: number;
+        created_at: string;
+        updated_at: string;
+    } | null;
+    crate_open: {
+        id: number;
+        user_id: number;
+        crate_id: string;
+        weapon_id: string;
+        client_seed: string;
+        server_seed: string;
+        server_seed_hash: string;
+        nonce: number;
+        probability_used: number;
+        price_paid: string;
+        created_at: string;
+        updated_at: string;
+        weapon: {
+            id: string;
+            name: string;
+            description: string;
+            image: string;
+            rarity: string | null;
+            price: string;
+            probability: number;
+            created_at: string;
+            updated_at: string;
+        };
+    } | null;
 }
 
 interface ApiResponse {
-    history: {
-        current_page: number;
-        data: HistoryItem[];
-        last_page: number;
-        per_page: number;
-        total: number;
-        next_page_url: string | null;
-        prev_page_url: string | null;
-    };
+    status: boolean;
+    message: string;
+    data: InventoryItem[];
 }
 
 export default function Inventory({ loginAuth, baseUrl = 'https://backend.bismeel.com' }: Props) {
-    const [historyData, setHistoryData] = useState<HistoryItem[]>([]);
+    const [inventoryData, setInventoryData] = useState<InventoryItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
+    const [itemsPerPage] = useState(20); // Adjust as needed
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedRarity, setSelectedRarity] = useState('All Rarities');
     const [sortBy, setSortBy] = useState('Sort by');
@@ -58,13 +88,14 @@ export default function Inventory({ loginAuth, baseUrl = 'https://backend.bismee
     });
 
     useEffect(() => {
-        fetchHistory();
+        fetchInventory();
     }, [currentPage]);
 
     useEffect(() => {
         calculateStats();
-    }, [historyData]);
-   const getAuthToken = () => {
+    }, [inventoryData]);
+
+    const getAuthToken = () => {
         if (typeof window === 'undefined') return null;
         const authData = localStorage.getItem('auth');
         if (!authData) return null;
@@ -76,7 +107,6 @@ export default function Inventory({ loginAuth, baseUrl = 'https://backend.bismee
         }
     };
 
-    // Get headers with auth token
     const getHeaders = () => {
         const token = getAuthToken();
         return {
@@ -84,39 +114,61 @@ export default function Inventory({ loginAuth, baseUrl = 'https://backend.bismee
             ...(token && { 'Authorization': `Bearer ${token}` })
         };
     };
-    const fetchHistory = async () => {
+
+    const fetchInventory = async () => {
         try {
             setLoading(true);
-            const response = await fetch(`${baseUrl}/api/crates/history?page=${currentPage}`,{
+            const response = await fetch(`${baseUrl}/api/inventory`, {
                 headers: getHeaders()
             });
             const data: ApiResponse = await response.json();
             
-            setHistoryData(data.history.data);
-            setTotalPages(data.history.last_page);
+            if (data.status && data.data) {
+                setInventoryData(data.data);
+            } else {
+                console.error('Error fetching inventory:', data.message);
+                setInventoryData([]);
+            }
         } catch (error) {
-            console.error('Error fetching history:', error);
+            console.error('Error fetching inventory:', error);
+            setInventoryData([]);
         } finally {
             setLoading(false);
         }
     };
 
     const calculateStats = () => {
-        if (historyData.length === 0) return;
+        if (inventoryData.length === 0) {
+            setStats({
+                totalItems: 0,
+                avgValue: 0,
+                legendaryPlus: 0,
+                highestValue: 0
+            });
+            return;
+        }
 
-        const totalItems = historyData.length;
-        const avgValue = historyData.reduce((sum, item) => 
-            sum + parseFloat(item.weapon.price || '0'), 0) / totalItems;
-        const legendaryPlus = historyData.filter(item => 
-            item.weapon.rarity === 'Legendary' || item.weapon.rarity === 'Mythical').length;
-        const highestValue = Math.max(...historyData.map(item => 
-            parseFloat(item.weapon.price || '0')));
+        const totalItems = inventoryData.length;
+        const avgValue = inventoryData.reduce((sum, item) => {
+            const weapon = item.base_weapon || item.crate_open?.weapon;
+            return sum + parseFloat(weapon?.price || '0');
+        }, 0) / totalItems;
+        
+        const legendaryPlus = inventoryData.filter(item => {
+            const weapon = item.base_weapon || item.crate_open?.weapon;
+            return weapon?.rarity === 'Legendary' || weapon?.rarity === 'Mythical';
+        }).length;
+        
+        const highestValue = Math.max(...inventoryData.map(item => {
+            const weapon = item.base_weapon || item.crate_open?.weapon;
+            return parseFloat(weapon?.price || '0');
+        }));
 
         setStats({
             totalItems,
             avgValue: parseFloat(avgValue.toFixed(2)),
             legendaryPlus,
-            highestValue
+            highestValue: parseFloat(highestValue.toFixed(2))
         });
     };
 
@@ -160,36 +212,59 @@ export default function Inventory({ loginAuth, baseUrl = 'https://backend.bismee
         return rarityColors[rarity || 'Common'] || '#39FF67';
     };
 
+    // Get weapon data from inventory item
+    const getWeaponData = (item: InventoryItem) => {
+        return item.base_weapon || item.crate_open?.weapon;
+    };
+
     // Filter and sort data
     const getFilteredData = () => {
-        let filtered = [...historyData];
+        let filtered = [...inventoryData];
 
         // Search filter
         if (searchQuery) {
-            filtered = filtered.filter(item =>
-                item.weapon.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                item.crate.name.toLowerCase().includes(searchQuery.toLowerCase())
-            );
+            filtered = filtered.filter(item => {
+                const weapon = getWeaponData(item);
+                return weapon?.name.toLowerCase().includes(searchQuery.toLowerCase());
+            });
         }
 
         // Rarity filter
         if (selectedRarity !== 'All Rarities') {
-            filtered = filtered.filter(item => item.weapon.rarity === selectedRarity);
+            filtered = filtered.filter(item => {
+                const weapon = getWeaponData(item);
+                return weapon?.rarity === selectedRarity;
+            });
         }
 
         // Sort
         if (sortBy === 'Sort Price') {
-            filtered.sort((a, b) => parseFloat(b.weapon.price) - parseFloat(a.weapon.price));
+            filtered.sort((a, b) => {
+                const weaponA = getWeaponData(a);
+                const weaponB = getWeaponData(b);
+                return parseFloat(weaponB?.price || '0') - parseFloat(weaponA?.price || '0');
+            });
         } else if (sortBy === 'Sort Date') {
             filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         } else if (sortBy === 'Sort Name') {
-            filtered.sort((a, b) => a.weapon.name.localeCompare(b.weapon.name));
+            filtered.sort((a, b) => {
+                const weaponA = getWeaponData(a);
+                const weaponB = getWeaponData(b);
+                return (weaponA?.name || '').localeCompare(weaponB?.name || '');
+            });
         }
 
         return filtered;
     };
 
     const filteredData = getFilteredData();
+
+    // Pagination
+    const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+    const paginatedData = filteredData.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
 
     return (
         <>
@@ -305,21 +380,26 @@ export default function Inventory({ loginAuth, baseUrl = 'https://backend.bismee
                         <div className="col-span-full text-center py-20 text-white">
                             Loading...
                         </div>
-                    ) : filteredData.length > 0 ? (
-                        filteredData.map((item) => (
-                            <BuyCard 
-                                item={{
-                                    id: item.id.toString(),
-                                    img: item.weapon.image,
-                                    price: `$${parseFloat(item.weapon.price).toFixed(2)}`,
-                                    des: item.weapon.name,
-                                    color: getRarityColor(item.weapon.rarity),
-                                    btn: 'Sell Now',
-                                }} 
-                                key={item.id} 
-                                path={`/inventory/${item.id}`} 
-                            />
-                        ))
+                    ) : paginatedData.length > 0 ? (
+                        paginatedData.map((item) => {
+                            const weapon = getWeaponData(item);
+                            if (!weapon) return null;
+
+                            return (
+                                <BuyCard 
+                                    item={{
+                                        id: item.id.toString(),
+                                        img: weapon.image,
+                                        price: `$${parseFloat(weapon.price).toFixed(2)}`,
+                                        des: weapon.name,
+                                        color: getRarityColor(weapon.rarity),
+                                        btn: 'Sell Now',
+                                    }} 
+                                    key={item.id} 
+                                    path={`/inventory/${item.id}`} 
+                                />
+                            );
+                        })
                     ) : (
                         <div className="col-span-full text-center py-20 text-white/60">
                             No items found
