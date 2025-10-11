@@ -16,46 +16,7 @@ type FooterItem = {
 
 export default function Footer({ }: Props) {
   const items: FooterItem[] = [
-    {
-      title: 'Links to',
-      links: [
-        {
-          name: '5 minutes draws',
-        },
-        {
-          name: 'Daily draws',
-        },
-        {
-          name: 'Weeky draws',
-        },
-        {
-          name: 'Special Draws',
-        },
-        {
-          name: 'Instant Scratch card',
-        },
-        {
-          name: 'Spin page',
-        },
-      ]
-    },
-    {
-      title: 'About us',
-      links: [
-        {
-          name: 'News',
-        },
-        {
-          name: 'Partnership',
-        },
-        {
-          name: 'Weeky draws',
-        },
-        {
-          name: 'Business Contacts',
-        },
-      ]
-    },
+    
     {
       title: 'Support & Legal info',
       links: [
@@ -72,19 +33,10 @@ export default function Footer({ }: Props) {
           name: 'Live Support',
         },
         {
-          name: 'Fairness',
-        },
-        {
-          name: 'Gamble aware',
-        },
-        {
           name: 'Privacy Policy',
         },
         {
           name: 'Terms of use',
-        },
-        {
-          name: 'AML Policy',
         },
       ]
     },
@@ -175,7 +127,7 @@ export default function Footer({ }: Props) {
           {items.map((item, index) => (
             <div className='flex flex-col items-start gap-3 md:gap-4' key={index}>
               <h6 className='text-base text-white font-satoshi font-semibold !leading-[130%]'>{item.title}</h6>
-              <div className={`flex flex-col  ${index === 3 ? 'gap-4' : 'gap-2 md:gap-3'}`}>
+              <div className={`flex flex-col  ${index === 2 ? 'gap-4' : 'gap-2 md:gap-3'}`}>
                 {item.links.map((item, index) => (
                   <a href="" className='text-base text-white/60 flex items-center hover:text-white hover:translate-x-1 font-satoshi font-normal !leading-normal' key={index}>
                     {item.icon && <span className='inline-block mr-2'>{item.icon}</span>}

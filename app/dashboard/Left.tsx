@@ -67,6 +67,18 @@ export default function Left({ className }: Props) {
                     name: 'Analytics',
                     path: '/dashboard/analytics',
                 },
+                {
+                    icon: (<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M16.25 6.25H3.75C3.40482 6.25 3.125 5.97018 3.125 5.625V4.375C3.125 4.02982 3.40482 3.75 3.75 3.75H16.25C16.5952 3.75 16.875 4.02982 16.875 4.375V5.625C16.875 5.97018 16.5952 6.25 16.25 6.25Z" fill="currentColor"/>
+    <path d="M7.5 6.25V10H3.75V8.125C3.75 7.08947 4.58947 6.25 5.625 6.25H7.5Z" fill="currentColor"/>
+    <path d="M12.5 6.25V10H16.25V8.125C16.25 7.08947 15.4105 6.25 14.375 6.25H12.5Z" fill="currentColor"/>
+    <path d="M7.5 11.25H3.75V15.625C3.75 16.6605 4.58947 17.5 5.625 17.5H7.5V11.25Z" fill="currentColor"/>
+    <path d="M12.5 11.25H16.25V15.625C16.25 16.6605 15.4105 17.5 14.375 17.5H12.5V11.25Z" fill="currentColor"/>
+    <path d="M10 6.25C10.6904 6.25 11.25 5.69036 11.25 5C11.25 4.30964 10.6904 3.75 10 3.75C9.30964 3.75 8.75 4.30964 8.75 5C8.75 5.69036 9.30964 6.25 10 6.25Z" fill="currentColor"/>
+</svg>),
+                    name: 'Gift Card',
+                    path: '/dashboard/giftcard',
+                },
             ]
         }
     ]

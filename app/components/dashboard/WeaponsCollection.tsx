@@ -19,12 +19,14 @@ type Props = {
   item?: CardData;
   onDelete?: (id: string) => void;
   onEdit?: (id: string) => void;
+  hideEditButton?: boolean;
 };
 
 export default function WeaponsCollection({
   item,
   className = "",
   onDelete,
+  hideEditButton = false,
 }: Props) {
   if (!item) return null;
 
@@ -39,14 +41,16 @@ export default function WeaponsCollection({
       }}
     >
       <div className="absolute top-3 right-3 z-30 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
-        <Link
-          href={`/dashboard/weapons/${item.id}`}
-          onClick={(e) => e.stopPropagation()}
-          className="p-2 bg-blue-600/80 text-white rounded-full hover:bg-blue-500 hover:scale-110"
-          aria-label="Edit weapon"
-        >
-          <Edit size={16} />
-        </Link>
+        {!hideEditButton && (
+          <Link
+            href={`/dashboard/weapons/${item.id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="p-2 bg-blue-600/80 text-white rounded-full hover:bg-blue-500 hover:scale-110"
+            aria-label="Edit weapon"
+          >
+            <Edit size={16} />
+          </Link>
+        )}
         {onDelete && (
           <button
             onClick={(e) => {
