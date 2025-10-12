@@ -289,7 +289,7 @@ export default function Header({ }: Props) {
   
   // Dynamic values with fallbacks
   const cc_rate = 6.395;
-  const userAvatar = userData?.user?.avatar || '/img/login-user.png';
+  const avatar = userData?.user?.avatar || '/img/login-user.png';
   const userName = userData?.user?.name || 'User';
 
   // Filter Admin Panel link based on user admin status
@@ -336,7 +336,7 @@ export default function Header({ }: Props) {
             </Link>
             <div ref={dropdownRef} className="relative z-1">
               <button onClick={() => setIsInfoModal((prev) => !prev)} className='flex items-center justify-center gap-2 p-2 rounded-full bg-white/[6%] size-10 overflow-hidden relative z-1'>
-                <img className='absolute top-0 left-0 w-full min-h-full h-auto object-cover' src={userAvatar} alt={userName} />
+                <img className='absolute top-0 left-0 w-full min-h-full h-auto object-cover' src={avatar} alt={userName} />
               </button>
             </div>
             {pathname.includes('/dashboard/') &&

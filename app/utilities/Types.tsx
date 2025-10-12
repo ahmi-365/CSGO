@@ -20,6 +20,8 @@ export interface CollectionItem {
     onDelete: () => void;
     onViewDetails: () => void;
     onManageWeapons: () => void;
+    isTop?: boolean;
+    onToggleTop?: () => void;
 }
 export interface WeaponsCollection {
     img?: string;

@@ -2,7 +2,7 @@
 import React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import ActionModal from '@/app/components/action-modal'; // Ensure this path is correct
-import { Settings, Trash2, Eye } from 'lucide-react'; // Import Lucide icons
+import { Settings, Trash2, Eye,Star } from 'lucide-react'; // Import Lucide icons
 
 type Props = {
     className?: string;
@@ -13,15 +13,19 @@ type Props = {
     status: string;
     color: string;
     color2: string;
+    isTop?: boolean;
     onEdit: (id: string) => void; // Expects ID for the action
     onDelete: (id: string) => void; // Expects ID for the action
     onViewDetails: (id: string) => void; // Expects ID for the action
     onManageWeapons: (id: string) => void; // Add this new prop
+    onToggleTop?: () => void;
 };
 
 export default function CollectionCard({
     id, img, price, items, status, color, color2,
-    onEdit, onDelete, onViewDetails, onManageWeapons, // Destructure new prop
+    onEdit, onDelete, onViewDetails, onManageWeapons, // Destructure new prop,
+    onToggleTop,
+    isTop,
     className = ''
 }: Props) {
     const [action_modal_open, set_action_modal_open] = useState(false);
@@ -44,17 +48,25 @@ export default function CollectionCard({
     }, []);
 
     return (
-        <div
-            key={id}
-            className={`relative group cursor-pointer z-1 rounded-xl overflow-hidden bg-[#1C1E2D] ${className}`}
-            style={{
-                border: "double 1px transparent",
-                backgroundImage: `linear-gradient(#1C1E2D, #1C1E2D), linear-gradient(${color2 || '#4A3426'} 95%, ${color || '#FB8609'} 100%)`,
-                backgroundOrigin: "border-box",
-                backgroundClip: "content-box, border-box"
-            }}
-        >
-            <div className="pt-5 p-4 flex flex-col items-center gap-2 xl:gap-4">
+     <div
+    key={id}
+    className={`relative group cursor-pointer z-1 rounded-xl overflow-hidden bg-[#1C1E2D] ${className}`}
+    style={{
+        border: "double 1px transparent",
+        backgroundImage: `linear-gradient(#1C1E2D, #1C1E2D), linear-gradient(${color2 || '#4A3426'} 95%, ${color || '#FB8609'} 100%)`,
+        backgroundOrigin: "border-box",
+        backgroundClip: "content-box, border-box"
+    }}
+>
+    {/* ADD THIS TOP BADGE */}
+    {isTop && (
+        <div className="absolute top-2 left-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1 z-10 shadow-lg">
+            <Star size={12} fill="white" />
+            TOP
+        </div>
+    )}
+    
+    <div className="pt-5 p-4 flex flex-col items-center gap-2 xl:gap-4">
                 <div ref={dropdownRef} className="absolute top-2.5 right-2.5 z-1">
                     <button
                         onClick={(e) => {
@@ -74,7 +86,9 @@ export default function CollectionCard({
                         viewAction={() => { onViewDetails(id); toggleButton(); }}
                         editAction={() => { onEdit(id); toggleButton(); }}
                         deleteAction={() => { onDelete(id); toggleButton(); }}
-                        manageWeaponsAction={() => { onManageWeapons(id); toggleButton(); }} // Pass new action
+                        manageWeaponsAction={() => { onManageWeapons(id); toggleButton(); }}
+                        toggleTopAction={onToggleTop ? () => { onToggleTop(); toggleButton(); } : undefined}  // ✅ ADDED
+                        isTop={isTop}
                     />
                 </div>
                 <div onClick={() => onViewDetails(id)} className="w-full h-full flex flex-col items-center gap-2 xl:gap-4 cursor-pointer">

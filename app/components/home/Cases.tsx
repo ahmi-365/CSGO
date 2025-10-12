@@ -3,12 +3,12 @@ import Link from "next/link";
 import BuyCard from "@/app/components/cases/BuyCard";
 import { CaseItem } from "@/app/utilities/Types";
 import { JSX } from "react";
+import { Star } from "lucide-react";
 
 type Props = {
   loginAuth?: boolean;
 };
 
-// Updated interface to include an optional onClick handler
 interface SocialItem {
   icon?: JSX.Element | string;
   path?: string;
@@ -16,10 +16,11 @@ interface SocialItem {
 }
 
 interface ApiCrate {
-  id: string; // Ensure the API crate also has an ID
+  id: string;
   name: string;
   image: string;
   price: string;
+  top?: boolean;
   rarity?: {
     color: string;
   } | null;
@@ -46,47 +47,76 @@ export default function Cases({ loginAuth = true }: Props) {
   const [caseItems, setCaseItems] = useState<CaseItem[]>([]);
   const [featuredCase, setFeaturedCase] = useState<CaseItem | null>(null);
   const [loading, setLoading] = useState(true);
+  const [topCrateLoading, setTopCrateLoading] = useState(true);
   const base_url = process.env.NEXT_PUBLIC_API_BASE_URL;
 
+  // Combined fetch logic in a single useEffect
   useEffect(() => {
-    const fetchCases = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch(`${base_url}/api/cases`);
-        const data = await response.json();
+        setTopCrateLoading(true);
+        setLoading(true);
 
-        // Transform API data to match CaseItem type
-        const transformedCases: CaseItem[] = data.crates.data.map(
-          (crate: ApiCrate) => ({
-            id: crate.id, // Assign the ID from the API response
-            img: crate.image,
-            price: `$${crate.price}`,
-            des: crate.name,
-            color: crate.rarity?.color || getRandomColor(),
-          })
-        );
+        // Fetch top crate and all cases in parallel
+        const [topCrateResponse, casesResponse] = await Promise.all([
+          fetch(`${base_url}/api/crate/top`).catch(() => null),
+          fetch(`${base_url}/api/cases`).catch(() => null),
+        ]);
 
-        setCaseItems(transformedCases);
+        let topCaseFound = false;
 
-        // Select a random case for the featured section
-        if (transformedCases.length > 0) {
-          const randomIndex = Math.floor(
-            Math.random() * transformedCases.length
+        // Process top crate
+        if (topCrateResponse && topCrateResponse.ok) {
+          const topData = await topCrateResponse.json();
+          if (topData.status && topData.data) {
+            const topCrate: CaseItem = {
+              id: topData.data.id,
+              img: topData.data.image,
+              price: `$${topData.data.price}`,
+              des: topData.data.name,
+              color: topData.data.rarity?.color || getRandomColor(),
+            };
+            setFeaturedCase(topCrate);
+            topCaseFound = true;
+          }
+        }
+
+        // Process all cases
+        if (casesResponse && casesResponse.ok) {
+          const casesData = await casesResponse.json();
+          const transformedCases: CaseItem[] = casesData.crates.data.map(
+            (crate: ApiCrate) => ({
+              id: crate.id,
+              img: crate.image,
+              price: `$${crate.price}`,
+              des: crate.name,
+              color: crate.rarity?.color || getRandomColor(),
+              isTop: crate.top || false,
+            })
           );
-          setFeaturedCase(transformedCases[randomIndex]);
+
+          setCaseItems(transformedCases);
+
+          // Only set random featured case if top crate wasn't found
+          if (!topCaseFound && transformedCases.length > 0) {
+            const randomIndex = Math.floor(
+              Math.random() * transformedCases.length
+            );
+            setFeaturedCase(transformedCases[randomIndex]);
+          }
         }
       } catch (error) {
-        console.error("Error fetching cases:", error);
+        console.error("Error fetching data:", error);
         setCaseItems([]);
-        setFeaturedCase(null);
       } finally {
+        setTopCrateLoading(false);
         setLoading(false);
       }
     };
 
-    fetchCases();
-  }, [base_url]); // Added base_url to dependency array
+    fetchData();
+  }, [base_url]); // Only base_url in dependencies
 
-  // --- NEW: Function to handle Google Login ---
   const handleGoogleLogin = async () => {
     try {
       console.log(
@@ -104,10 +134,8 @@ export default function Cases({ loginAuth = true }: Props) {
       const data = await response.json();
 
       if (data.status === true && data.url) {
-        // If the API returns a valid URL, redirect the user
         window.location.href = data.url;
       } else {
-        // Handle cases where the API response is not as expected
         console.error("Failed to get Google login URL:", data);
       }
     } catch (error) {
@@ -118,7 +146,6 @@ export default function Cases({ loginAuth = true }: Props) {
     }
   };
 
-  // --- UPDATED: Social array with onClick handler for Google ---
   const social: SocialItem[] = [
     {
       icon: (
@@ -129,7 +156,6 @@ export default function Cases({ loginAuth = true }: Props) {
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
         >
-          {/* SVG paths for Google icon */}
           <g clipPath="url(#clip0_0_497)">
             <path
               d="M23.0935 9.41355L13.3042 9.41309C12.8719 9.41309 12.5215 9.76343 12.5215 10.1957V13.323C12.5215 13.7552 12.8719 14.1056 13.3041 14.1056H18.8169C18.2132 15.6722 17.0865 16.9842 15.6491 17.8178L17.9997 21.887C21.7704 19.7062 23.9997 15.8799 23.9997 11.5965C23.9997 10.9866 23.9548 10.5506 23.8649 10.0597C23.7965 9.68674 23.4727 9.41355 23.0935 9.41355Z"
@@ -163,14 +189,12 @@ export default function Cases({ loginAuth = true }: Props) {
           </defs>
         </svg>
       ),
-      path: "#", // Changed from "/" to "#"
-      onClick: handleGoogleLogin, // Added onClick handler
+      path: "#",
+      onClick: handleGoogleLogin,
     },
-    
   ];
 
-  // Generate the path for the featured case using its ID
-  const featuredCasePath = featuredCase ? `/case/${featuredCase.id}` : "/"; // Fallback to home if no featured case
+  const featuredCasePath = featuredCase ? `/case/${featuredCase.id}` : "/";
 
   return (
     <>
@@ -178,12 +202,13 @@ export default function Cases({ loginAuth = true }: Props) {
         <div className="absolute top-1/2 -translate-y-1/2 left-[-60%] -z-1 bg-[#702AEC] size-70 md:size-150 lg:size-215 rounded-full blur-[150px]"></div>
         <div className="absolute bottom-[-30%] lg:bottom-[-50%] right-20 -z-1 bg-[#702AEC] size-30 md:size-50 lg:size-75 rounded-full blur-[100px]"></div>
         <div className="absolute top-1/2 -translate-y-1/2 right-[-62%] -z-1 bg-[#702AEC] size-70 md:size-150 lg:size-215 rounded-full blur-[150px]"></div>
+        
         {loginAuth ? (
           <>{/* Logged in view */}</>
         ) : (
           <>
             <div className="max-w-110 text-center md:text-start">
-              {loading ? (
+              {topCrateLoading || loading ? (
                 <div className="absolute hidden md:block md:bottom-0 xl:-bottom-18 right-0 xl:-right-13 md:max-w-90 lg:max-w-110 xl:max-w-148 -z-1 animate-pulse bg-white/10 rounded-lg w-90 h-90"></div>
               ) : featuredCase ? (
                 <img
@@ -199,14 +224,14 @@ export default function Cases({ loginAuth = true }: Props) {
                 />
               )}
               <h1 className="text-[28px] md:text-3xl lg:text-4xl mb-4 !leading-[130%]">
-                {loading
+                {topCrateLoading || loading
                   ? "Loading..."
                   : featuredCase
                   ? `Don't Miss Out on ${featuredCase.des}`
                   : "Don't Miss Out on Our Best-Selling Case"}
               </h1>
               <p className="text-base !leading-normal max-w-85 mb-6">
-                {loading
+                {topCrateLoading || loading
                   ? "Fetching our best cases..."
                   : featuredCase
                   ? `${featuredCase.price} - The #1 Pick Everyone's Buying Right Now for Unmatched Value`
@@ -214,24 +239,21 @@ export default function Cases({ loginAuth = true }: Props) {
               </p>
               <div className="flex flex-wrap flex-col-reverse md:flex-row w-full gap-4">
                 <Link
-                  href={featuredCasePath} // This uses the ID for navigation
+                  href={featuredCasePath}
                   className="grow md:grow-0 gradient-border-two rounded-full p-px overflow-hidden shadow-[0_4px_8px_0_rgba(59,188,254,0.32)] text-sm md:text-base min-h-13 flex items-center justify-center text-white font-bold"
                 >
                   <span className="px-5">Get Started - Right Now</span>
                 </Link>
                 <div className="flex items-center gap-2 mx-auto md:mx-0">
-                  {/* --- UPDATED: Rendering logic for social icons --- */}
                   {social.map((item, index) => (
                     <a
                       href={item.path}
                       onClick={(e) => {
-                        // If an onClick function is provided, prevent default link behavior and call the function
                         if (item.onClick) {
                           e.preventDefault();
                           item.onClick();
                         }
                       }}
-                      // Open in new tab only if it's a regular link, not an action
                       target={!item.onClick ? "_blank" : "_self"}
                       rel={!item.onClick ? "noopener noreferrer" : ""}
                       className="bg-[#BFC0D8]/8 text-[#6F7083] size-13 rounded-full flex items-center justify-center hover:bg-primary hover:text-white cursor-pointer"

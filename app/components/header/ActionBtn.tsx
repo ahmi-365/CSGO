@@ -230,10 +230,10 @@ export default function ActionBtn({}: Props) {
       </div>
 
       {/* Login/Signup Modal */}
-      {loginModal && (
-        <div className="fixed size-full inset-0 bg-[#171925]/60 px-3 py-6 flex items-center justify-center z-50">
-          <div className="w-full max-w-185 mx-auto bg-[#D7DEFF]/15 border border-solid border-[#D7DEFF]/10 backdrop-blur-[20px] flex flex-col-reverse md:flex-row flex-wrap rounded-2xl overflow-hidden">
-            
+   {loginModal && (
+  <div className="fixed  size-full inset-0 bg-[#171925]/60 z-[9999] overflow-y-auto">
+    <div className="min-h-full px-3 py-6 flex items-center justify-center">
+      <div className="w-full max-w-185 mx-auto bg-[#D7DEFF]/15 border border-solid border-[#D7DEFF]/10 backdrop-blur-[20px] flex flex-col-reverse md:flex-row flex-wrap rounded-2xl overflow-hidden my-6">
             {/* Form Section */}
             <div className="w-full md:w-1/2 py-9 px-6">
               <div className="flex items-center border-b border-solid border-white/12 mb-5">
@@ -434,6 +434,8 @@ export default function ActionBtn({}: Props) {
               </svg>
             </div>
           </div>
+          </div>
+
         </div>
       )}
     </>

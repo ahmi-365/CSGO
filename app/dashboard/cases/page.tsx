@@ -6,6 +6,7 @@ import InfoCard from '@/app/components/dashboard/InfoCard';
 import { CollectionItem, caseInfoItem } from '@/app/utilities/Types';
 import Link from 'next/link';
 import { Layers, List, DollarSign, Settings, Plus, X,  Edit, Trash2, Search } from 'lucide-react';
+  import Swal from 'sweetalert2';
 
 type Props = {}
 
@@ -384,6 +385,37 @@ export default function Page({ }: Props) {
         }
     };
 
+const handleToggleTop = async (crateId: string, currentTopStatus: boolean) => {
+  try {
+    const response = await fetch(`${baseUrl}/api/admin/crates/${crateId}/top`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to toggle top status');
+    }
+
+    await fetchCrates();
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Success!',
+      text: `Crate ${currentTopStatus ? 'removed from' : 'set as'} top successfully!`,
+      confirmButtonColor: '#3085d6',
+      timer: 2000,
+    });
+  } catch (err) {
+    Swal.fire({
+      icon: 'error',
+      title: 'Error!',
+      text: err instanceof Error ? err.message : 'Failed to toggle top status',
+      confirmButtonColor: '#d33',
+    });
+  }
+};
+
+
     const resetForm = () => {
         setFormData({
             name: '',
@@ -479,10 +511,12 @@ export default function Page({ }: Props) {
             status: "Active",
             color: colorSet.color,
             color2: colorSet.color2,
+            isTop: crate.top || false,
             onEdit: () => handleEdit(crate.id),
             onDelete: () => handleDelete(crate.id),
             onViewDetails: () => handleViewDetails(crate.id),
-            onManageWeapons: () => handleManageWeapons(crate.id)
+            onManageWeapons: () => handleManageWeapons(crate.id),
+            onToggleTop: () => handleToggleTop(crate.id, crate.top || false) 
         };
     });
 
@@ -553,10 +587,12 @@ export default function Page({ }: Props) {
                             status={singleCard.status ?? ''}
                             color={singleCard.color ?? ''}
                             color2={singleCard.color2 ?? ''}
+                            isTop={singleCard.isTop}
                             onViewDetails={singleCard.onViewDetails}
                             onEdit={singleCard.onEdit}
                             onDelete={singleCard.onDelete}
                             onManageWeapons={singleCard.onManageWeapons}
+                             onToggleTop={singleCard.onToggleTop} 
                         />
                     ))}
                 </div>
