@@ -165,7 +165,7 @@ export default function Inventory({
   const [casesData, setCasesData] = useState<CrateItem[]>([]);
   
   const [topCrateLoading, setTopCrateLoading] = useState(true);
-  const [inventoryLoading, setInventoryLoading] = useState(true);
+  const [inventoryLoading, setInventoryLoading] = useState(false);
   const [casesLoading, setCasesLoading] = useState(true);
   
   const [currentPage, setCurrentPage] = useState(1);
@@ -173,15 +173,20 @@ export default function Inventory({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRarity, setSelectedRarity] = useState("All Rarities");
   const [sortBy, setSortBy] = useState("Sort by");
-  const [activeTab, setActiveTab] = useState<"inventory" | "cases">("inventory");
+  
+  // Default tab: logged in users see inventory, others see cases
+  const [activeTab, setActiveTab] = useState<"inventory" | "cases">(
+    loginAuth ? "inventory" : "cases"
+  );
 
   // Fetch all data on component mount
   useEffect(() => {
     fetchTopCrate();
+    fetchCases();
+    
     if (loginAuth) {
       fetchInventory();
     }
-    fetchCases();
   }, [loginAuth]);
 
   // Reset page when tab changes
@@ -230,13 +235,20 @@ export default function Inventory({
     }
   };
 
-  // Fetch Inventory
+  // Fetch Inventory (only for logged in users)
   const fetchInventory = async () => {
     try {
       setInventoryLoading(true);
       const response = await fetch(`${baseUrl}/api/inventory`, {
         headers: getHeaders(),
       });
+      
+      if (response.status === 401) {
+        // Unauthorized - user not logged in
+        setInventoryData([]);
+        return;
+      }
+      
       const data: InventoryApiResponse = await response.json();
 
       if (data.status && data.data) {
@@ -253,7 +265,7 @@ export default function Inventory({
     }
   };
 
-  // Fetch Cases
+  // Fetch Cases (for all users)
   const fetchCases = async () => {
     try {
       setCasesLoading(true);
@@ -361,7 +373,7 @@ export default function Inventory({
 
   // Filter and sort data based on active tab
   const getFilteredData = () => {
-    if (activeTab === "inventory") {
+    if (activeTab === "inventory" && loginAuth) {
       let filtered = [...inventoryData];
 
       // Search filter
@@ -404,7 +416,7 @@ export default function Inventory({
 
       return filtered;
     } else {
-      // Cases tab
+      // Cases tab (for both logged in and logged out users)
       let filtered = [...casesData];
 
       // Search filter
@@ -450,6 +462,12 @@ export default function Inventory({
     currentPage * itemsPerPage
   );
 
+  // Determine which data to show based on login status
+  const showInventory = loginAuth && activeTab === "inventory";
+  const showCases = !loginAuth || activeTab === "cases";
+  const currentLoading = showInventory ? inventoryLoading : casesLoading;
+  const currentData = showInventory ? inventoryData : casesData;
+
   return (
     <>
       {/* Hero Section with Top Crate */}
@@ -484,23 +502,25 @@ export default function Inventory({
               className="absolute hidden md:block bottom-2 right-30 h-full object-cover z-5"
               alt=""
             />
-            <h1 className="text-4xl !leading-[130%] mb-2">Inventory</h1>
+            <h1 className="text-4xl !leading-[130%] mb-2">Inventory
+</h1>
             <h4 className="text-base text-white font-bold">
-              CleanCase Inventory
+              CleanCase Collection
             </h4>
             <div className="border border-solid border-white/16 my-3 max-w-84"></div>
             <p className="text-base !leading-normal max-w-85 mb-6">
               Play lotteries online and hit the jackpot! Great Bonus For Every Deposit
+
             </p>
             <div className="flex items-center gap-3 justify-center md:justify-start">
               <Link
-                href="/login"
+                href="/"
                 className="grow gradient-border-two rounded-full p-px overflow-hidden shadow-[0_4px_8px_0_rgba(59,188,254,0.32)] text-sm md:text-base min-h-13 flex items-center justify-center text-white font-bold"
               >
                 <span className="px-5 md:px-7 lg:px-9 xl:px-13">Play Now</span>
               </Link>
               <Link
-                href="/login"
+                href="/"
                 className="grow border border-solid border-white/10 rounded-full p-px overflow-hidden bg-[#1719253D] text-sm md:text-base min-h-13 flex items-center justify-center text-white font-bold hover:bg-[#51FF2D]/30"
               >
                 <span className="px-5 md:px-7 lg:px-9 xl:px-13">
@@ -552,7 +572,7 @@ export default function Inventory({
         )}
       </div>
 
-      {/* Tabs for Inventory and Cases */}
+      {/* Tabs for Inventory and Cases (only show for logged in users) */}
       {loginAuth && (
         <div className="flex border-b border-white/10 mb-6">
           <button
@@ -578,7 +598,7 @@ export default function Inventory({
         </div>
       )}
 
-      {/* Stats only for Inventory tab */}
+      {/* Stats only for Inventory tab (only for logged in users) */}
       {loginAuth && activeTab === "inventory" && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
           {userInfo.map((item, index) => (
@@ -596,7 +616,11 @@ export default function Inventory({
         <div className="flex flex-col md:flex-row items-center justify-between gap-3 relative z-10">
           <Input
             type="text"
-            placeholder={activeTab === "inventory" ? "Search your inventory..." : "Search cases..."}
+            placeholder={
+              loginAuth && activeTab === "inventory" 
+                ? "Search your inventory..." 
+                : "Search cases..."
+            }
             className="min-w-full xl:min-w-80.5"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -694,13 +718,13 @@ export default function Inventory({
         
         {/* Items Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4 pb-8 pd:10">
-          {((activeTab === "inventory" && inventoryLoading) || (activeTab === "cases" && casesLoading)) ? (
+          {currentLoading ? (
             <div className="col-span-full text-center py-20 text-white">
-              Loading {activeTab === "inventory" ? "inventory" : "cases"}...
+              Loading {loginAuth && activeTab === "inventory" ? "inventory" : "cases"}...
             </div>
           ) : paginatedData.length > 0 ? (
             paginatedData.map((item) => {
-              if (activeTab === "inventory") {
+              if (showInventory) {
                 const weapon = getWeaponData(item as InventoryItem);
                 if (!weapon) return null;
 
@@ -738,7 +762,7 @@ export default function Inventory({
             })
           ) : (
             <div className="col-span-full text-center py-20 text-white/60">
-              {activeTab === "inventory" 
+              {showInventory
                 ? (inventoryData.length === 0 
                     ? "Your inventory is empty. Start opening cases to collect items!"
                     : "No items match your search criteria"
@@ -753,7 +777,7 @@ export default function Inventory({
         </div>
 
         {/* Pagination */}
-        {totalPages > 1 && !(activeTab === "inventory" ? inventoryLoading : casesLoading) && (
+        {totalPages > 1 && !currentLoading && (
           <div className="flex items-center justify-center gap-2 mt-6">
             <button
               onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
