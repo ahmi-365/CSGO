@@ -104,7 +104,6 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
         
         // Transform and filter out the current crate
         const transformedCases: CaseItem[] = data.crates.data
-          .filter((crate: any) => crate.id !== crateId) // Exclude current crate
           .map((crate: any) => ({
             id: crate.id,
             img: crate.image,
