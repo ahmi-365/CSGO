@@ -61,14 +61,16 @@ export interface UserInfoItem {
     label: string;
     color?: string;
 }
-export interface StremItem {
-    img: string;
-    price: string;
-    name: string;
-    color: string;
-    color2: string;
-}
 
+export interface StremItem {
+  img: string;
+  price: string;
+  name: string;
+  color: string;
+  color2: string;
+  isReal: boolean;
+  id: string;
+}
 export interface CardData {
   id: string;
   title: string;

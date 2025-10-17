@@ -13,9 +13,10 @@ import { UserInfoItem } from "@/app/utilities/Types";
 import Input from "../ui/Input";
 import Dropdown from "../ui/Dropdown";
 import InfoCard2 from "@/app/components/home/InfoCard2";
+import { getAuthData } from "@/app/service/api"; // Assuming getAuthData is correctly implemented here
 
 type Props = {
-  loginAuth?: boolean;
+  //  ?: boolean;
   baseUrl?: string;
 };
 
@@ -100,99 +101,33 @@ interface InventoryApiResponse {
   data: InventoryItem[];
 }
 
-// Cases Types
-interface CrateItem {
-  id: string;
-  rarity_id: string | null;
-  name: string;
-  image: string | null;
-  price: string;
-  description: string | null;
-  type: string;
-  first_sale_date: string | null;
-  market_hash_name: string | null;
-  rental: boolean;
-  model_player: string | null;
-  loot_name: string | null;
-  loot_footer: string | null;
-  loot_image: string | null;
-  top: boolean;
-  created_at: string;
-  updated_at: string;
-  skins: any[];
-  keys: any[];
-  items: any[];
-  weapons: any[];
-  rarity: {
-    id: string;
-    name: string;
-    color: string;
-    created_at: string | null;
-    updated_at: string | null;
-  } | null;
-}
-
-interface CasesApiResponse {
-  crates: {
-    current_page: number;
-    data: CrateItem[];
-    first_page_url: string;
-    from: number;
-    last_page: number;
-    last_page_url: string;
-    links: Array<{
-      url: string | null;
-      label: string;
-      page: number | null;
-      active: boolean;
-    }>;
-    next_page_url: string | null;
-    path: string;
-    per_page: number;
-    prev_page_url: string | null;
-    to: number;
-    total: number;
-  };
-}
-
 export default function Inventory({
-  loginAuth,
+   
   baseUrl = "https://backend.bismeel.com",
 }: Props) {
+  console.log("Inventory Component Rendered.  :",  );
+
   // All States
   const [topCrateData, setTopCrateData] = useState<TopCrateData | null>(null);
   const [inventoryData, setInventoryData] = useState<InventoryItem[]>([]);
-  const [casesData, setCasesData] = useState<CrateItem[]>([]);
-  
+  const [error, setError] = useState<string | null>(null); // Added error state
+
   const [topCrateLoading, setTopCrateLoading] = useState(true);
   const [inventoryLoading, setInventoryLoading] = useState(false);
-  const [casesLoading, setCasesLoading] = useState(true);
-  
+
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRarity, setSelectedRarity] = useState("All Rarities");
   const [sortBy, setSortBy] = useState("Sort by");
-  
-  // Default tab: logged in users see inventory, others see cases
-  const [activeTab, setActiveTab] = useState<"inventory" | "cases">(
-    loginAuth ? "inventory" : "cases"
-  );
 
   // Fetch all data on component mount
   useEffect(() => {
     fetchTopCrate();
-    fetchCases();
-    
-    if (loginAuth) {
-      fetchInventory();
-    }
-  }, [loginAuth]);
 
-  // Reset page when tab changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [activeTab]);
+      fetchInventory();
+    
+  }, [ ]); // <--- Added   to dependency array
 
   const getAuthToken = () => {
     if (typeof window === "undefined") return null;
@@ -239,50 +174,40 @@ export default function Inventory({
   const fetchInventory = async () => {
     try {
       setInventoryLoading(true);
+      setError(null); // Clear previous errors
+      const authData = getAuthData();
+      const token = authData?.token;
+
+      if (!token) {
+        throw new Error("Authentication token not found");
+      }
+
       const response = await fetch(`${baseUrl}/api/inventory`, {
         headers: getHeaders(),
       });
-      
-      if (response.status === 401) {
-        // Unauthorized - user not logged in
-        setInventoryData([]);
-        return;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to fetch inventory");
       }
-      
       const data: InventoryApiResponse = await response.json();
 
       if (data.status && data.data) {
-        setInventoryData(data.data);
+        // Filter out items that are sold or don't have *any* weapon data
+        const validItems = data.data.filter(
+          (item: InventoryItem) =>
+            !item.is_sold && (item.base_weapon !== null || item.crate_open?.weapon !== null) // <--- ADJUSTED FILTER
+        );
+        setInventoryData(validItems); // <--- CORRECTED STATE SETTER
       } else {
-        console.error("Error fetching inventory:", data.message);
-        setInventoryData([]);
+        setError(data.message || "Failed to load inventory");
+        setInventoryData([]); // Clear inventory on error/no data
       }
-    } catch (error) {
-      console.error("Error fetching inventory:", error);
-      setInventoryData([]);
+    } catch (err) {
+      console.error("Error fetching inventory:", err);
+      setError(err instanceof Error ? err.message : "Failed to load inventory");
+      setInventoryData([]); // Clear inventory on error
     } finally {
       setInventoryLoading(false);
-    }
-  };
-
-  // Fetch Cases (for all users)
-  const fetchCases = async () => {
-    try {
-      setCasesLoading(true);
-      const response = await fetch(`${baseUrl}/api/cases`);
-      const data: CasesApiResponse = await response.json();
-
-      if (data.crates && data.crates.data) {
-        setCasesData(data.crates.data);
-      } else {
-        console.error("Error fetching cases:", data);
-        setCasesData([]);
-      }
-    } catch (error) {
-      console.error("Error fetching cases:", error);
-      setCasesData([]);
-    } finally {
-      setCasesLoading(false);
     }
   };
 
@@ -298,10 +223,11 @@ export default function Inventory({
     }
 
     const totalItems = inventoryData.length;
-    const avgValue = inventoryData.reduce((sum, item) => {
-      const weapon = item.base_weapon || item.crate_open?.weapon;
-      return sum + parseFloat(weapon?.price || "0");
-    }, 0) / totalItems;
+    const avgValue =
+      inventoryData.reduce((sum, item) => {
+        const weapon = item.base_weapon || item.crate_open?.weapon;
+        return sum + parseFloat(weapon?.price || "0");
+      }, 0) / totalItems;
 
     const legendaryPlus = inventoryData.filter((item) => {
       const weapon = item.base_weapon || item.crate_open?.weapon;
@@ -371,86 +297,49 @@ export default function Inventory({
     return item.base_weapon || item.crate_open?.weapon || null;
   };
 
-  // Filter and sort data based on active tab
+  // Filter and sort inventory data
   const getFilteredData = () => {
-    if (activeTab === "inventory" && loginAuth) {
-      let filtered = [...inventoryData];
+    let filtered = [...inventoryData];
 
-      // Search filter
-      if (searchQuery) {
-        filtered = filtered.filter((item) => {
-          const weapon = getWeaponData(item);
-          return weapon?.name.toLowerCase().includes(searchQuery.toLowerCase());
-        });
-      }
-
-      // Rarity filter
-      if (selectedRarity !== "All Rarities") {
-        filtered = filtered.filter((item) => {
-          const weapon = getWeaponData(item);
-          return weapon?.rarity === selectedRarity;
-        });
-      }
-
-      // Sort
-      if (sortBy === "Sort Price") {
-        filtered.sort((a, b) => {
-          const weaponA = getWeaponData(a);
-          const weaponB = getWeaponData(b);
-          return (
-            parseFloat(weaponB?.price || "0") - parseFloat(weaponA?.price || "0")
-          );
-        });
-      } else if (sortBy === "Sort Date") {
-        filtered.sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-      } else if (sortBy === "Sort Name") {
-        filtered.sort((a, b) => {
-          const weaponA = getWeaponData(a);
-          const weaponB = getWeaponData(b);
-          return (weaponA?.name || "").localeCompare(weaponB?.name || "");
-        });
-      }
-
-      return filtered;
-    } else {
-      // Cases tab (for both logged in and logged out users)
-      let filtered = [...casesData];
-
-      // Search filter
-      if (searchQuery) {
-        filtered = filtered.filter((item) => {
-          return item.name.toLowerCase().includes(searchQuery.toLowerCase());
-        });
-      }
-
-      // Rarity filter
-      if (selectedRarity !== "All Rarities") {
-        filtered = filtered.filter((item) => {
-          return item.rarity?.name === selectedRarity;
-        });
-      }
-
-      // Sort
-      if (sortBy === "Sort Price") {
-        filtered.sort((a, b) => {
-          return parseFloat(b.price || "0") - parseFloat(a.price || "0");
-        });
-      } else if (sortBy === "Sort Date") {
-        filtered.sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-      } else if (sortBy === "Sort Name") {
-        filtered.sort((a, b) => {
-          return a.name.localeCompare(b.name);
-        });
-      }
-
-      return filtered;
+    // Search filter
+    if (searchQuery) {
+      filtered = filtered.filter((item) => {
+        const weapon = getWeaponData(item);
+        return weapon?.name.toLowerCase().includes(searchQuery.toLowerCase());
+      });
     }
+
+    // Rarity filter
+    if (selectedRarity !== "All Rarities") {
+      filtered = filtered.filter((item) => {
+        const weapon = getWeaponData(item);
+        return weapon?.rarity === selectedRarity;
+      });
+    }
+
+    // Sort
+    if (sortBy === "Sort Price") {
+      filtered.sort((a, b) => {
+        const weaponA = getWeaponData(a);
+        const weaponB = getWeaponData(b);
+        return (
+          parseFloat(weaponB?.price || "0") - parseFloat(weaponA?.price || "0")
+        );
+      });
+    } else if (sortBy === "Sort Date") {
+      filtered.sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+    } else if (sortBy === "Sort Name") {
+      filtered.sort((a, b) => {
+        const weaponA = getWeaponData(a);
+        const weaponB = getWeaponData(b);
+        return (weaponA?.name || "").localeCompare(weaponB?.name || "");
+      });
+    }
+
+    return filtered;
   };
 
   const filteredData = getFilteredData();
@@ -462,144 +351,95 @@ export default function Inventory({
     currentPage * itemsPerPage
   );
 
-  // Determine which data to show based on login status
-  const showInventory = loginAuth && activeTab === "inventory";
-  const showCases = !loginAuth || activeTab === "cases";
-  const currentLoading = showInventory ? inventoryLoading : casesLoading;
-  const currentData = showInventory ? inventoryData : casesData;
-
   return (
     <>
       {/* Hero Section with Top Crate */}
-      <div className="bg-[#1C1E2D] border border-solid border-white/10 rounded-3xl p-6 md:p-8 lg:py-11 lg:px-13 relative z-1 overflow-hidden mb-4 md:mb-5 lg:mb-6">
-        {!loginAuth ? (
-          <>
-            <div className="absolute top-1/2 -translate-y-1/2 left-[-10%] -z-1 bg-[#51FF2D] size-70 lg:size-92 rounded-full blur-[200px]"></div>
-            <div className="absolute top-1/2 -translate-y-4 right-[-12%] -z-1 bg-[#51FF2D] size-70 lg:size-92 rounded-full blur-[200px]"></div>
-          </>
-        ) : (
-          <>
-            <div className="absolute top-1/2 -translate-y-1/2 left-[-60%] -z-1 bg-[#702AEC] size-70 md:size-150 lg:size-215 rounded-full blur-[150px]"></div>
-            <div className="absolute bottom-[-30%] lg:bottom-[-50%] right-20 -z-1 bg-[#702AEC] size-30 md:size-50 lg:size-75 rounded-full blur-[100px]"></div>
-            <div className="absolute top-1/2 -translate-y-1/2 right-[-62%] -z-1 bg-[#702AEC] size-70 md:size-150 lg:size-215 rounded-full blur-[150px]"></div>
-          </>
-        )}
-        
-        {!loginAuth ? (
-          <div className="max-w-98 text-center md:text-start">
-            <img
-              src="/img/inventor/img.png"
-              className="absolute hidden md:block bottom-2 right-0 -z-1 mix-blend-color-dodge h-full object-cover opacity-6"
-              alt=""
-            />
-            <img
-              src="/img/inventor/img_1.png"
-              className="absolute hidden md:block bottom-2 right-0 -z-1 h-full object-cover"
-              alt=""
-            />
-            <img
-              src="/img/inventor/img_2.png"
-              className="absolute hidden md:block bottom-2 right-30 h-full object-cover z-5"
-              alt=""
-            />
-            <h1 className="text-4xl !leading-[130%] mb-2">Inventory
-</h1>
-            <h4 className="text-base text-white font-bold">
-              CleanCase Collection
-            </h4>
-            <div className="border border-solid border-white/16 my-3 max-w-84"></div>
-            <p className="text-base !leading-normal max-w-85 mb-6">
-              Play lotteries online and hit the jackpot! Great Bonus For Every Deposit
+    <div className="bg-[#1C1E2D] border border-solid border-white/10 rounded-3xl p-8 md:p-12 lg:py-13 lg:px-18 relative z-1 overflow-hidden mb-6">
+  {/* 💜 Background Glows */}
+  <div className="absolute top-1/2 -translate-y-1/2 left-[-60%] -z-1 bg-[#702AEC] size-70 md:size-150 lg:size-215 rounded-full blur-[150px]"></div>
+  <div className="absolute bottom-[-30%] lg:bottom-[-50%] right-20 -z-1 bg-[#702AEC] size-30 md:size-50 lg:size-75 rounded-full blur-[100px]"></div>
+  <div className="absolute top-1/2 -translate-y-1/2 right-[-62%] -z-1 bg-[#702AEC] size-70 md:size-150 lg:size-215 rounded-full blur-[150px]"></div>
 
-            </p>
-            <div className="flex items-center gap-3 justify-center md:justify-start">
-              <Link
-                href="/"
-                className="grow gradient-border-two rounded-full p-px overflow-hidden shadow-[0_4px_8px_0_rgba(59,188,254,0.32)] text-sm md:text-base min-h-13 flex items-center justify-center text-white font-bold"
-              >
-                <span className="px-5 md:px-7 lg:px-9 xl:px-13">Play Now</span>
-              </Link>
-              <Link
-                href="/"
-                className="grow border border-solid border-white/10 rounded-full p-px overflow-hidden bg-[#1719253D] text-sm md:text-base min-h-13 flex items-center justify-center text-white font-bold hover:bg-[#51FF2D]/30"
-              >
-                <span className="px-5 md:px-7 lg:px-9 xl:px-13">
-                  How to Play
-                </span>
-              </Link>
-            </div>
-          </div>
-        ) : (
-          <div className="max-w-133 text-center md:text-start">
-            {/* Display top crate data when available */}
-            {topCrateData && !topCrateLoading && (
-              <>
-                <img
-                  src={topCrateData.image}
-                  className="absolute hidden md:block bottom-0 right-0 md:max-w-80 lg:max-w-100 -z-1"
-                  alt={topCrateData.name}
-                />
-                <h1 className="text-3xl md:text-4xl mb-4 !leading-[130%]">
-                  {topCrateData.name}
-                </h1>
-                <p className="text-base !leading-normal mb-6">
-                  {topCrateData.description || "Featured case with exclusive items and rare rewards"}
-                </p>
-                <div className="flex items-center gap-4 mb-4">
-                  <span className="text-[#51FF2D] font-bold text-xl">
-                    ${parseFloat(topCrateData.price).toFixed(2)}
-                  </span>
-                  <span className="text-white/70">Type: {topCrateData.type}</span>
-                  <span className="text-white/70">
-                    {activeTab === "inventory" 
-                      ? `${inventoryData.length} Items in Inventory` 
-                      : `${casesData.length} Cases Available`
-                    }
-                  </span>
-                </div>
-                <Link
-                  href={`/cases/${topCrateData.id}`}
-                  className="min-w-45 max-w-full md:w-max gradient-border-two rounded-full p-px overflow-hidden shadow-[0_4px_8px_0_rgba(59,188,254,0.32)] text-sm md:text-base min-h-13 flex items-center justify-center text-white font-bold"
-                >
-                  <span className="px-5">Open Case</span>
-                </Link>
-              </>
-            )}
-            {topCrateLoading && (
-              <div className="text-white text-center py-8">Loading featured case...</div>
-            )}
-          </div>
-        )}
-      </div>
+  {/* 💎 Featured Ribbon */}
+  <div className="absolute top-12 -left-12 rotate-[-45deg] bg-gradient-to-r from-[#702AEC] via-[#8A40FF] to-[#702AEC] text-white font-semibold text-[10px] md:text-xs lg:text-sm tracking-wide px-12 py-1 shadow-[0_0_12px_rgba(112,42,236,0.8)] backdrop-blur-sm animate-pulse-glow z-10">
+    ★ FEATURED
+  </div>
 
-      {/* Tabs for Inventory and Cases (only show for logged in users) */}
-      {loginAuth && (
-        <div className="flex border-b border-white/10 mb-6">
-          <button
-            onClick={() => setActiveTab("inventory")}
-            className={`px-6 py-3 font-bold text-lg transition-colors ${
-              activeTab === "inventory"
-                ? "text-[#51FF2D] border-b-2 border-[#51FF2D]"
-                : "text-white/60 hover:text-white"
-            }`}
-          >
-            My Inventory ({inventoryData.length})
-          </button>
-          <button
-            onClick={() => setActiveTab("cases")}
-            className={`px-6 py-3 font-bold text-lg transition-colors ${
-              activeTab === "cases"
-                ? "text-[#51FF2D] border-b-2 border-[#51FF2D]"
-                : "text-white/60 hover:text-white"
-            }`}
-          >
-            Available Cases ({casesData.length})
-          </button>
+  <div className="max-w-133 text-center md:text-start">
+    {topCrateData && !topCrateLoading ? (
+      <>
+        {/* 🧱 Case Image */}
+        <img
+          src={topCrateData.image}
+          className="absolute hidden md:block md:bottom-0  right-0 xl:right-13 md:max-w-90 lg:max-w-110 xl:max-w-148 -z-1"
+          alt={topCrateData.name}
+        />
+
+        {/* 🧾 Title */}
+        <h1 className="text-[28px] md:text-3xl lg:text-4xl mb-4 !leading-[130%]">
+          {topCrateData.name}
+        </h1>
+
+        {/* 🧠 Description */}
+        <p className="text-base !leading-normal max-w-85 mb-6">
+          {topCrateData.description ||
+            "Featured case with exclusive items and rare rewards. Open now to get amazing weapons for your collection!"}
+        </p>
+
+        {/* 💰 Price and Stats */}
+        <div className="flex items-center gap-4 mb-6 flex-wrap justify-center md:justify-start">
+          <span className="text-[#51FF2D] font-bold text-xl">
+            ${parseFloat(topCrateData.price).toFixed(2)}
+          </span>
+          <span className="text-white/70">Type: {topCrateData.type}</span>
+          <span className="text-white/70">
+            {inventoryData?.length || 0} Items in Your Inventory
+          </span>
         </div>
-      )}
 
-      {/* Stats only for Inventory tab (only for logged in users) */}
-      {loginAuth && activeTab === "inventory" && (
+        {/* 🧭 Button */}
+      <Link
+  href={`/cases/${topCrateData.id}`}
+  className="gradient-border-two rounded-full p-px overflow-hidden shadow-[0_4px_8px_0_rgba(59,188,254,0.32)] text-sm md:text-base min-h-13 flex items-center justify-center text-white font-bold hover:scale-105 transition-transform w-auto md:w-max"
+>
+  <span className="px-5 md:px-7 lg:px-9">Open Case Now</span>
+</Link>
+
+      </>
+    ) : topCrateLoading ? (
+      <div className="text-white text-center py-8">Loading featured case...</div>
+    ) : (
+      <>
+        {/* 🧩 Fallback Section */}
+        <h1 className="text-4xl !leading-[130%] mb-2">Inventory</h1>
+        <h4 className="text-base text-white font-bold">CleanCase Collection</h4>
+        <div className="border border-solid border-white/16 my-3 max-w-84"></div>
+        <p className="text-base !leading-normal max-w-85 mb-6">
+          Discover amazing weapons and build your ultimate collection. Open
+          cases to get rare and legendary items!
+        </p>
+        <div className="flex items-center gap-3 justify-center md:justify-start">
+          <Link
+            href="/cases"
+            className="grow gradient-border-two rounded-full p-px overflow-hidden shadow-[0_4px_8px_0_rgba(59,188,254,0.32)] text-sm md:text-base min-h-13 flex items-center justify-center text-white font-bold"
+          >
+            <span className="px-5 md:px-7 lg:px-9 xl:px-13">Browse Cases</span>
+          </Link>
+          <Link
+            href="/how-to-play"
+            className="grow border border-solid border-white/10 rounded-full p-px overflow-hidden bg-[#1719253D] text-sm md:text-base min-h-13 flex items-center justify-center text-white font-bold hover:bg-[#51FF2D]/30"
+          >
+            <span className="px-5 md:px-7 lg:px-9 xl:px-13">How to Play</span>
+          </Link>
+        </div>
+      </>
+    )}
+  </div>
+</div>
+
+
+      {/* Stats for Inventory - Only show if user is logged in and has items */}
+      {   inventoryData.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
           {userInfo.map((item, index) => (
             <InfoCard2
@@ -616,11 +456,7 @@ export default function Inventory({
         <div className="flex flex-col md:flex-row items-center justify-between gap-3 relative z-10">
           <Input
             type="text"
-            placeholder={
-              loginAuth && activeTab === "inventory" 
-                ? "Search your inventory..." 
-                : "Search cases..."
-            }
+            placeholder="Search your inventory..."
             className="min-w-full xl:min-w-80.5"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -715,69 +551,52 @@ export default function Inventory({
             />
           </div>
         </div>
-        
-        {/* Items Grid */}
+
+        {/* Inventory Items Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4 pb-8 pd:10">
-          {currentLoading ? (
+          {inventoryLoading ? (
             <div className="col-span-full text-center py-20 text-white">
-              Loading {loginAuth && activeTab === "inventory" ? "inventory" : "cases"}...
+              Loading inventory...
+            </div>
+          ) : error ? ( // Display error message if there is an error
+            <div className="col-span-full text-center py-20 text-red-500">
+              Error: {error}
+              <br />
+              Please make sure you are logged in and refresh the page.
             </div>
           ) : paginatedData.length > 0 ? (
             paginatedData.map((item) => {
-              if (showInventory) {
-                const weapon = getWeaponData(item as InventoryItem);
-                if (!weapon) return null;
+              const weapon = getWeaponData(item);
+              if (!weapon) return null; // Should not happen with the updated filter, but good for safety
 
-                return (
-                  <BuyCard
-                    item={{
-                      id: (item as InventoryItem).id.toString(),
-                      img: weapon.image,
-                      price: `$${parseFloat(weapon.price).toFixed(2)}`,
-                      des: weapon.name,
-                      color: getRarityColor(weapon.rarity),
-                      btn: (item as InventoryItem).is_sold ? "Sold" : "Sell Now",
-                    }}
-                    key={(item as InventoryItem).id}
-                    path={`/inventory/${(item as InventoryItem).id}`}
-                  />
-                );
-              } else {
-                const crate = item as CrateItem;
-                return (
-                  <BuyCard
-                    item={{
-                      id: crate.id,
-                      img: crate.image || "/img/default-case.png",
-                      price: `$${parseFloat(crate.price).toFixed(2)}`,
-                      des: crate.name,
-                      color: getRarityColor(crate.rarity?.name || null),
-                      btn: "Buy Now",
-                    }}
-                    key={crate.id}
-                    path={`/cases/${crate.id}`}
-                  />
-                );
-              }
+              return (
+                <BuyCard
+                  item={{
+                    id: item.id.toString(),
+                    img: weapon.image,
+                    price: `$${parseFloat(weapon.price).toFixed(2)}`,
+                    des: weapon.name,
+                    color: getRarityColor(weapon.rarity),
+                    btn: item.is_sold ? "Sold" : "Sell Now",
+                  }}
+                  key={item.id}
+                  path={`/inventory/${item.id}`}
+                />
+              );
             })
           ) : (
             <div className="col-span-full text-center py-20 text-white/60">
-              {showInventory
-                ? (inventoryData.length === 0 
-                    ? "Your inventory is empty. Start opening cases to collect items!"
-                    : "No items match your search criteria"
-                  )
-                : (casesData.length === 0
-                    ? "No cases available at the moment."
-                    : "No cases match your search criteria"
-                  )
+              {inventoryData.length === 0
+                ?  
+                   "Your inventory is empty. Start opening cases to collect items!"
+                  : "Please log in to view your inventory"
               }
             </div>
           )}
         </div>
 
         {/* Pagination */}
-        {totalPages > 1 && !currentLoading && (
+        {totalPages > 1 && !inventoryLoading && !error && ( // Hide pagination if error
           <div className="flex items-center justify-center gap-2 mt-6">
             <button
               onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}

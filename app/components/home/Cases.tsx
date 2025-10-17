@@ -205,85 +205,90 @@ export default function Cases({ loginAuth = true }: Props) {
 
   return (
     <>
-      <div className="bg-[#1C1E2D] border border-solid border-white/10 rounded-3xl p-8 md:p-12 lg:py-13 lg:px-18 relative z-1 overflow-hidden">
-        <div className="absolute top-1/2 -translate-y-1/2 left-[-60%] -z-1 bg-[#702AEC] size-70 md:size-150 lg:size-215 rounded-full blur-[150px]"></div>
-        <div className="absolute bottom-[-30%] lg:bottom-[-50%] right-20 -z-1 bg-[#702AEC] size-30 md:size-50 lg:size-75 rounded-full blur-[100px]"></div>
-        <div className="absolute top-1/2 -translate-y-1/2 right-[-62%] -z-1 bg-[#702AEC] size-70 md:size-150 lg:size-215 rounded-full blur-[150px]"></div>
+    <div className="bg-[#1C1E2D] border border-solid border-white/10 rounded-3xl p-8 md:p-12 lg:py-13 lg:px-18 relative z-1 overflow-hidden">
+  {/* 💜 Background Glows */}
+  <div className="absolute top-1/2 -translate-y-1/2 left-[-60%] -z-1 bg-[#702AEC] size-70 md:size-150 lg:size-215 rounded-full blur-[150px]"></div>
+  <div className="absolute bottom-[-30%] lg:bottom-[-50%] right-20 -z-1 bg-[#702AEC] size-30 md:size-50 lg:size-75 rounded-full blur-[100px]"></div>
+  <div className="absolute top-1/2 -translate-y-1/2 right-[-62%] -z-1 bg-[#702AEC] size-70 md:size-150 lg:size-215 rounded-full blur-[150px]"></div>
 
-        {/* --- START OF FIX --- */}
-        {/* The banner content is now rendered for ALL users, logged in or not. */}
-        {/* The {loginAuth ? ... : ...} check has been removed from around this section. */}
-        <div className="max-w-110 text-center md:text-start">
-          {topCrateLoading || loading ? (
-            <div className="absolute hidden md:block md:bottom-0 xl:-bottom-18 right-0 xl:-right-13 md:max-w-90 lg:max-w-110 xl:max-w-148 -z-1 animate-pulse bg-white/10 rounded-lg w-90 h-90"></div>
-          ) : featuredCase ? (
-            <img
-              src={featuredCase.img}
-              className="absolute hidden md:block md:bottom-0 xl:-bottom-18 right-0 xl:-right-13 md:max-w-90 lg:max-w-110 xl:max-w-148 -z-1"
-              alt={featuredCase.des}
-            />
-          ) : (
-            <img
-              src="/img/home/img_2.png"
-              className="absolute hidden md:block md:bottom-0 xl:-bottom-18 right-0 xl:-right-13 md:max-w-90 lg:max-w-110 xl:max-w-148 -z-1"
-              alt=""
-            />
-          )}
-          <h1 className="text-[28px] md:text-3xl lg:text-4xl mb-4 !leading-[130%]">
-            {topCrateLoading || loading
-              ? "Loading..."
-              : featuredCase
-              ? `Don't Miss Out on ${featuredCase.des}`
-              : "Don't Miss Out on Our Best-Selling Case"}
-          </h1>
-          <p className="text-base !leading-normal max-w-85 mb-6">
-            {topCrateLoading || loading
-              ? "Fetching our best cases..."
-              : featuredCase
-              ? `${featuredCase.price} - The #1 Pick Everyone's Buying Right Now for Unmatched Value`
-              : "The #1 Pick Everyone's Buying Right Now for Unmatched Value"}
-          </p>
+{featuredCase && (
+    <div className="absolute top-12 -left-12 rotate-[-45deg] bg-gradient-to-r from-[#702AEC] via-[#8A40FF] to-[#702AEC] text-white font-semibold text-[10px] md:text-xs lg:text-sm tracking-wide px-12 py-1 shadow-[0_0_12px_rgba(112,42,236,0.8)] backdrop-blur-sm animate-pulse-glow z-10">
+      ★ FEATURED CRATE
+    </div>
+  )}
 
-          {/* Conditional logic is now ONLY applied to the buttons */}
-          <div className="flex flex-wrap flex-col-reverse md:flex-row w-full gap-4">
-            <Link
-              href={featuredCasePath}
-              className="grow md:grow-0 gradient-border-two rounded-full p-px overflow-hidden shadow-[0_4px_8px_0_rgba(59,188,254,0.32)] text-sm md:text-base min-h-13 flex items-center justify-center text-white font-bold"
+  {/* --- START OF FIX --- */}
+  <div className="max-w-110 text-center md:text-start">
+    {topCrateLoading || loading ? (
+      <div className="absolute hidden md:block md:bottom-0 xl:-bottom-18 right-0 xl:-right-13 md:max-w-90 lg:max-w-110 xl:max-w-148 -z-1 animate-pulse bg-white/10 rounded-lg w-90 h-90"></div>
+    ) : featuredCase ? (
+      <img
+        src={featuredCase.img}
+        className="absolute hidden md:block md:bottom-0  right-0 xl:right-13 md:max-w-90 lg:max-w-110 xl:max-w-148 -z-1"
+        alt={featuredCase.des}
+      />
+    ) : (
+      <img
+        src="/img/home/img_2.png"
+        className="absolute hidden md:block md:bottom-0 xl:-bottom-18 right-0 xl:-right-13 md:max-w-90 lg:max-w-110 xl:max-w-148 -z-1"
+        alt=""
+      />
+    )}
+
+    <h1 className="text-[28px] md:text-3xl lg:text-4xl mb-4 !leading-[130%]">
+      {topCrateLoading || loading
+        ? "Loading..."
+        : featuredCase
+        ? `Don't Miss Out on ${featuredCase.des}`
+        : "Don't Miss Out on Our Best-Selling Case"}
+    </h1>
+    <p className="text-base !leading-normal max-w-85 mb-6">
+      {topCrateLoading || loading
+        ? "Fetching our best cases..."
+        : featuredCase
+        ? `${featuredCase.price} - The #1 Pick Everyone's Buying Right Now for Unmatched Value`
+        : "The #1 Pick Everyone's Buying Right Now for Unmatched Value"}
+    </p>
+
+    {/* Buttons */}
+    <div className="flex flex-wrap flex-col-reverse md:flex-row w-full gap-4">
+      <Link
+        href={featuredCasePath}
+        className="grow md:grow-0 gradient-border-two rounded-full p-px overflow-hidden shadow-[0_4px_8px_0_rgba(59,188,254,0.32)] text-sm md:text-base min-h-13 flex items-center justify-center text-white font-bold"
+      >
+        <span className="px-5">
+          {loginAuth
+            ? `Open ${featuredCase?.des || "Case"}`
+            : "Get Started - Right Now"}
+        </span>
+      </Link>
+
+      {!loginAuth && (
+        <div className="flex items-center gap-2 mx-auto md:mx-0">
+          {social.map((item, index) => (
+            <a
+              href={item.path}
+              onClick={(e) => {
+                if (item.onClick) {
+                  e.preventDefault();
+                  item.onClick();
+                }
+              }}
+              target={!item.onClick ? "_blank" : "_self"}
+              rel={!item.onClick ? "noopener noreferrer" : ""}
+              className="bg-[#BFC0D8]/8 text-[#6F7083] size-13 rounded-full flex items-center justify-center hover:bg-primary hover:text-white cursor-pointer"
+              key={index}
             >
-              <span className="px-5">
-                {/* The button text changes based on login state */}
-                {loginAuth
-                  ? `Open ${featuredCase?.des || "Case"}`
-                  : "Get Started - Right Now"}
-              </span>
-            </Link>
-
-            {/* The social login buttons ONLY show if the user is NOT logged in */}
-            {!loginAuth && (
-              <div className="flex items-center gap-2 mx-auto md:mx-0">
-                {social.map((item, index) => (
-                  <a
-                    href={item.path}
-                    onClick={(e) => {
-                      if (item.onClick) {
-                        e.preventDefault();
-                        item.onClick();
-                      }
-                    }}
-                    target={!item.onClick ? "_blank" : "_self"}
-                    rel={!item.onClick ? "noopener noreferrer" : ""}
-                    className="bg-[#BFC0D8]/8 text-[#6F7083] size-13 rounded-full flex items-center justify-center hover:bg-primary hover:text-white cursor-pointer"
-                    key={index}
-                  >
-                    {item.icon}
-                  </a>
-                ))}
-              </div>
-            )}
-          </div>
+              {item.icon}
+            </a>
+          ))}
         </div>
-        {/* --- END OF FIX --- */}
-      </div>
+      )}
+    </div>
+  </div>
+  {/* --- END OF FIX --- */}
+</div>
+
 
       <div className="flex flex-col gap-y-5 mt-6 md:mt-8">
         <h4 className="text-2xl">Regular Cases</h4>

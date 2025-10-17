@@ -8,6 +8,7 @@ import Card from "@/app/deposit/componets/Card";
 import { motion, useAnimation } from "framer-motion";
 import Swal from "sweetalert2";
 import { Crosshair, Layers, Sparkles, Rocket } from "lucide-react";
+import { useToast } from "@/app/contexts/ToastContext";
 
 // --- Interfaces ---
 interface IncreamentCoutItem {
@@ -52,6 +53,31 @@ interface SpinIconItem {
   textColor: string | null;
 }
 
+// Inventory Item Interface
+interface InventoryItem {
+  id: number;
+  user_id: number;
+  base_weapon_id: string | null;
+  acquired_at: string;
+  is_sold: boolean;
+  price: string | null;
+  base_weapon: {
+    id: string;
+    name: string;
+    description: string;
+    image: string;
+    rarity: string | null;
+    price: string;
+    probability: number | null;
+  } | null;
+  crate_open: {
+    id: number;
+    crate_id: string;
+    price_paid: string;
+    created_at: string;
+  } | null;
+}
+
 const randomColors = [
   '#39FF67', '#FFD700', '#4FC8FF', '#C324E7', '#E94444', 
   '#FF8809', '#347BFF', '#ED164C', '#24E9FF', '#702AEC'
@@ -77,10 +103,11 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
 
   const [activeIncrementCount, setActiveIncrementCount] = useState(1);
   const [selectedSpins, setSelectedSpins] = useState<number[]>([]);
-
+  const { showToast } = useToast()
+const [currentPosition, setCurrentPosition] = useState(0);
   const [spinnerItems, setSpinnerItems] = useState<StremItem[]>([]);
-  const [allCases, setAllCases] = useState<CaseItem[]>([]);
-  const [casesLoading, setCasesLoading] = useState(true);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [inventoryLoading, setInventoryLoading] = useState(true);
 
   const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "YOUR_BASE_URL_HERE";
 
@@ -93,73 +120,178 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
     resolveParams();
   }, [params]);
 
-  // Fetch all cases for the "All Cases" section
+  // Fetch inventory items
   useEffect(() => {
-    const fetchAllCases = async () => {
+    const fetchInventory = async () => {
       try {
-        setCasesLoading(true);
-        const response = await fetch(`${BASE_URL}/api/cases`);
-        if (!response.ok) throw new Error("Failed to fetch cases");
+        setInventoryLoading(true);
+        const authData = getAuthData();
+        const token = authData?.token;
+        
+        if (!token) {
+          throw new Error("You must be logged in to view inventory");
+        }
+
+        const response = await fetch(`${BASE_URL}/api/inventory`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        });
+        
+        if (!response.ok) throw new Error("Failed to fetch inventory");
         const data = await response.json();
         
-        // Transform and filter out the current crate
-        const transformedCases: CaseItem[] = data.crates.data
-          .map((crate: any) => ({
-            id: crate.id,
-            img: crate.image,
-            price: `${parseFloat(crate.price).toFixed(2)}`,
-            des: crate.name,
-            color: crate.rarity?.color || getRandomColor(),
-          }));
-        
-        setAllCases(transformedCases);
+        if (data.status && data.data) {
+          // Filter out items that are sold or don't have base_weapon data
+          const validItems = data.data.filter((item: InventoryItem) => 
+            !item.is_sold && item.base_weapon !== null
+          );
+          setInventoryItems(validItems);
+        }
       } catch (err) {
-        console.error('Error fetching all cases:', err);
+        console.error('Error fetching inventory:', err);
+        setError(err instanceof Error ? err.message : "Failed to load inventory");
       } finally {
-        setCasesLoading(false);
+        setInventoryLoading(false);
       }
     };
 
-    if (crateId) {
-      fetchAllCases();
+    fetchInventory();
+  }, [BASE_URL]);
+// Fetch crate data for the spinner
+useEffect(() => {
+  if (!crateId) return;
+
+  const fetchCrateData = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${BASE_URL}/api/case/${crateId}`);
+      if (!response.ok) throw new Error("Failed to fetch crate data");
+      const data = await response.json();
+      setCrateData(data.crate);
+
+      let items = data.crate.items.map((item: CrateItem) => ({
+        img: item.image,
+        price: `${parseFloat(item.price).toFixed(3)}`,
+        name: item.name,
+        color: getRarityColor(item.rarity),
+        color2: getRarityColor2(item.rarity),
+        isReal: true,
+        id: item.id
+      }));
+
+      // Add static items if less than 5
+      const MIN_ITEMS = 10; // Increased for better visual
+      // if (items.length < MIN_ITEMS) {
+      //   const staticItems = [
+      //     {
+      //       img: "https://raw.githubusercontent.com/ByMykel/counter-strike-image-tracker/main/static/panorama/images/econ/weapons/base_weapons/weapon_ak47_png.png",
+      //       price: "150.00",
+      //       name: "AK-47",
+      //       color: "#4FC8FF",
+      //       color2: "#1D2E58",
+      //       isReal: false,
+      //       id: "static-1"
+      //     },
+      //     {
+      //       img: "https://raw.githubusercontent.com/ByMykel/counter-strike-image-tracker/main/static/panorama/images/econ/weapons/base_weapons/weapon_m4a1_png.png",
+      //       price: "120.00",
+      //       name: "M4A4",
+      //       color: "#C324E7",
+      //       color2: "#3E1F53",
+      //       isReal: false,
+      //       id: "static-2"
+      //     },
+      //     {
+      //       img: "https://raw.githubusercontent.com/ByMykel/counter-strike-image-tracker/main/static/panorama/images/econ/weapons/base_weapons/weapon_awp_png.png",
+      //       price: "200.00",
+      //       name: "AWP",
+      //       color: "#FFD700",
+      //       color2: "#4A3B26",
+      //       isReal: false,
+      //       id: "static-3"
+      //     },
+      //     {
+      //       img: "https://raw.githubusercontent.com/ByMykel/counter-strike-image-tracker/main/static/panorama/images/econ/weapons/base_weapons/weapon_deagle_png.png",
+      //       price: "80.00",
+      //       name: "Desert Eagle",
+      //       color: "#39FF67",
+      //       color2: "#1D5830",
+      //       isReal: false,
+      //       id: "static-4"
+      //     },
+      //     {
+      //       img: "https://raw.githubusercontent.com/ByMykel/counter-strike-image-tracker/main/static/panorama/images/econ/weapons/base_weapons/weapon_knife_png.png",
+      //       price: "500.00",
+      //       name: "Karambit",
+      //       color: "#E94444",
+      //       color2: "#4A1F1F",
+      //       isReal: false,
+      //       id: "static-5"
+      //     },
+      //     {
+      //       img: "https://raw.githubusercontent.com/ByMykel/counter-strike-image-tracker/main/static/panorama/images/econ/weapons/base_weapons/weapon_glock_png.png",
+      //       price: "50.00",
+      //       name: "Glock-18",
+      //       color: "#BFC0D8",
+      //       color2: "#3E3F4F",
+      //       isReal: false,
+      //       id: "static-6"
+      //     },
+      //     {
+      //       img: "https://raw.githubusercontent.com/ByMykel/counter-strike-image-tracker/main/static/panorama/images/econ/weapons/base_weapons/weapon_usp_silencer_png.png",
+      //       price: "60.00",
+      //       name: "USP-S",
+      //       color: "#4FC8FF",
+      //       color2: "#1D2E58",
+      //       isReal: false,
+      //       id: "static-7"
+      //     },
+      //     {
+      //       img: "https://raw.githubusercontent.com/ByMykel/counter-strike-image-tracker/main/static/panorama/images/econ/weapons/base_weapons/weapon_famas_png.png",
+      //       price: "90.00",
+      //       name: "FAMAS",
+      //       color: "#39FF67",
+      //       color2: "#1D5830",
+      //       isReal: false,
+      //       id: "static-8"
+      //     },
+      //     {
+      //       img: "https://raw.githubusercontent.com/ByMykel/counter-strike-image-tracker/main/static/panorama/images/econ/weapons/base_weapons/weapon_aug_png.png",
+      //       price: "100.00",
+      //       name: "AUG",
+      //       color: "#C324E7",
+      //       color2: "#3E1F53",
+      //       isReal: false,
+      //       id: "static-9"
+      //     },
+      //     {
+      //       img: "https://raw.githubusercontent.com/ByMykel/counter-strike-image-tracker/main/static/panorama/images/econ/weapons/base_weapons/weapon_ssg08_png.png",
+      //       price: "130.00",
+      //       name: "SSG 08",
+      //       color: "#FFD700",
+      //       color2: "#4A3B26",
+      //       isReal: false,
+      //       id: "static-10"
+      //     }
+      //   ];
+
+      //   const itemsNeeded = MIN_ITEMS - items.length;
+      //   items = [...items, ...staticItems.slice(0, itemsNeeded)];
+      // }
+
+      setSpinnerItems(items);
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setLoading(false);
     }
-  }, [BASE_URL, crateId]);
+  };
 
- 
-
-   useEffect(() => {
-    if (!crateId) return;
-
-    const fetchCrateData = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`${BASE_URL}/api/case/${crateId}`);
-        if (!response.ok) throw new Error("Failed to fetch crate data");
-        const data = await response.json();
-        setCrateData(data.crate);
-
-        const items = data.crate.items.map((item: CrateItem) => ({
-          img: item.image,
-          price: `${parseFloat(item.price).toFixed(3)}`,
-          name: item.name,
-          color: getRarityColor(item.rarity),
-          color2: getRarityColor2(item.rarity),
-        }));
-        
-        // The loop for repeating items has been removed.
-        // Now, we directly set the spinner items without repetition.
-        setSpinnerItems(items); 
-
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "An error occurred");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCrateData();
-  }, [crateId, BASE_URL]);
-
+  fetchCrateData();
+}, [crateId, BASE_URL]);
   function getRarityColor(rarity: string | null): string {
     if (!rarity) return "#BFC0D8";
     const rarityColors: { [key: string]: string } = {
@@ -232,128 +364,288 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
       );
     }
   };
+const handleOpenCrate = async () => {
+  if (spinning) return;
+  setSpinning(true);
+  
+  // Reset spinner to initial position
+  setCurrentPosition(0);
+  await controls.start({ x: 0, transition: { duration: 0 } });
 
-  const handleOpenCrate = async () => {
-    if (spinning) return;
-    setSpinning(true);
-    // Reset spinner to initial position
-    await controls.start({ x: 0, transition: { duration: 0 } });
+  const authData = getAuthData();
+  const token = authData?.token;
+  if (!token) {
+    showToast({
+      type: 'error',
+      title: 'Authentication Error',
+      message: 'You must be logged in to open a case.',
+      duration: 4000
+    });
+    setSpinning(false);
+    return;
+  }
 
-    const authData = getAuthData();
-    const token = authData?.token;
-    if (!token) {
-      Swal.fire(
-        "Authentication Error",
-        "You must be logged in to open a case.",
-        "error"
-      );
-      setSpinning(false);
-      return;
+  const client_seed = `cs-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+
+  // Card dimensions - MUST match your CSS exactly
+  const CARD_WIDTH = 180;
+  const GAP = 12;
+  const CARD_WIDTH_WITH_GAP = CARD_WIDTH + GAP;
+  const originalItemsCount = spinnerItems.length;
+  const oneReelWidth = originalItemsCount * CARD_WIDTH_WITH_GAP;
+
+  // Calculate infinite scroll parameters
+  const infiniteScrollDistance = oneReelWidth * 50;
+  const infiniteDuration = 150;
+
+  // Track animation start time
+  const animationStartTime = Date.now();
+
+  // Step 1: Start INFINITE LOOP animation
+  controls.start({
+    x: -infiniteScrollDistance,
+    transition: { 
+      duration: infiniteDuration,
+      ease: "linear",
+      repeat: Infinity,
+      repeatType: "loop"
+    },
+  });
+
+  try {
+    // Step 2: Call backend API
+    const response = await fetch(`${BASE_URL}/api/crate/${crateId}/open`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ client_seed }),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      const msg =
+        errorData.error ||
+        errorData.message ||
+        "Failed to open the crate. Please try again.";
+      throw new Error(msg);
     }
 
-    const client_seed = `cs-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+    const result = await response.json();
+    const wonWeapon: CrateItem = result.result.weapon;
+    const fairnessData: FairnessData = result.result.fairness;
 
-    try {
-      const response = await fetch(`${BASE_URL}/api/crate/${crateId}/open`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ client_seed }),
-      });
+    console.log("✅ Backend response received!");
+    console.log("Won weapon:", wonWeapon.name, "ID:", wonWeapon.id);
+
+    // Step 3: Find won item index in the ORIGINAL spinner items
+    const wonItemIndex = spinnerItems.findIndex(item => 
+      item.isReal && item.id === wonWeapon.id
+    );
+
+    if (wonItemIndex === -1) {
+      console.error("❌ Won weapon not found!");
+      console.error("Won weapon ID:", wonWeapon.id);
+      console.error("Won weapon name:", wonWeapon.name);
+      console.error("Available items:", spinnerItems.map(i => ({ 
+        id: i.id, 
+        name: i.name, 
+        isReal: i.isReal 
+      })));
+      throw new Error("Won item not found in spinner");
+    }
+
+    console.log("✅ Found won item at index:", wonItemIndex, "Name:", wonWeapon.name);
+
+    // Step 4: Calculate EXACT current position at this microsecond
+    const elapsed = (Date.now() - animationStartTime) / 1000; // seconds
+    const cycleProgress = (elapsed % infiniteDuration) / infiniteDuration; // 0 to 1 within one cycle
+    const currentX = -(cycleProgress * infiniteScrollDistance); // actual X position
+    
+    // How far we've traveled in terms of reels
+    const currentPositionInReels = Math.abs(currentX) / oneReelWidth;
+    const currentReelIndex = Math.floor(currentPositionInReels);
+    
+    // We want to land exactly on the won item, several reels ahead
+    const MIN_REELS_AHEAD = 5;
+    const targetReelIndex = currentReelIndex + MIN_REELS_AHEAD;
+    
+    // Calculate the exact pixel position of the winning card's LEFT edge
+    const winningCardLeftPosition = (targetReelIndex * oneReelWidth) + (wonItemIndex * CARD_WIDTH_WITH_GAP);
+    
+    // CRITICAL FIX: Use window.innerWidth / 2 as the true center
+    // The indicator SVG is centered on the screen, not the container
+    const screenCenter = window.innerWidth / 2;
+    const cardCenter = CARD_WIDTH / 2;
+    
+    // Final position: align the card's center with screen center
+    const finalX = -winningCardLeftPosition + screenCenter - cardCenter;
+
+    console.log("🎯 DETAILED Landing Calculation:", {
+      timestamp: new Date().toISOString(),
+      elapsed: `${elapsed.toFixed(3)}s`,
+      cycleProgress: `${(cycleProgress * 100).toFixed(2)}%`,
+      currentX: `${currentX.toFixed(2)}px`,
+      currentPositionInReels: currentPositionInReels.toFixed(3),
+      currentReelIndex,
+      wonItemIndex,
+      wonItemName: wonWeapon.name,
+      wonItemId: wonWeapon.id,
+      targetReelIndex,
+      winningCardLeftPosition: `${winningCardLeftPosition}px`,
+      screenCenter: `${screenCenter}px`,
+      cardCenter: `${cardCenter}px`,
+      finalX: `${finalX.toFixed(2)}px`,
+      oneReelWidth: `${oneReelWidth}px`,
+      totalItems: spinnerItems.length,
+      cardWidth: CARD_WIDTH,
+      gap: GAP,
+      windowWidth: window.innerWidth
+    });
+
+    // Step 5: CRITICAL - Stop the infinite animation properly
+    controls.set({ x: currentX });
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
+    // Now animate to the final position
+    await controls.start({
+      x: finalX,
+      transition: { 
+        duration: 4,
+        ease: [0.25, 0.1, 0.25, 1]
+      },
+    });
+
+    console.log("✅ Animation completed! Stopped at:", finalX);
+    console.log("✅ Should be showing:", wonWeapon.name, "at index:", wonItemIndex);
+
+    // Step 6: Show result
+    setTimeout(() => {
+      setSpinning(false);
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        const msg =
-          errorData.error ||
-          errorData.message ||
-          "Failed to open the crate. Please try again.";
-        throw new Error(msg);
-      }
+   showToast({
+  duration: 0,
+  customContent: (
+    <div className="text-center max-w-3xl w-full mx-auto px-4">
+      <h2 className="text-white text-2xl font-bold mb-3">
+        Congratulations!
+      </h2>
+      <p className="text-white/60 mb-6 text-sm">
+        You’ve unlocked a new reward item!
+      </p>
 
-      const result = await response.json();
-      const wonWeapon: CrateItem = result.result.weapon;
-      const fairnessData: FairnessData = result.result.fairness;
+      {/* Two-column layout */}
+      <div className="flex flex-col md:flex-row gap-6 items-center justify-between text-left">
+        {/* Left — Weapon Image + Info */}
+        <div
+          className="flex-1 p-6 rounded-2xl border relative overflow-hidden flex flex-col items-center"
+          style={{
+            backgroundColor: getRarityColor2(wonWeapon.rarity),
+            borderColor: getRarityColor(wonWeapon.rarity)
+          }}
+        >
+          <div
+            className="absolute inset-0 opacity-20 blur-xl"
+            style={{ backgroundColor: getRarityColor(wonWeapon.rarity) }}
+          />
+          <img
+            src={wonWeapon.image}
+            alt={wonWeapon.name}
+            className="max-w-[180px] md:max-w-[220px] h-auto mx-auto mb-3 relative z-10 drop-shadow-lg"
+          />
+          <h3
+            className="text-xl font-bold mb-1 relative z-10 text-center"
+            style={{ color: getRarityColor(wonWeapon.rarity) }}
+          >
+            {wonWeapon.name}
+          </h3>
+          <p className="text-white text-lg font-bold relative z-10">
+            ${parseFloat(wonWeapon.price).toFixed(2)}
+          </p>
+        </div>
 
-      // Get roll value from backend
-      const roll = fairnessData.roll;
+        {/* Right — Info and Fairness */}
+        <div className="flex-1 space-y-4 w-full">
+          {/* Balance Box */}
+          <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+            <p className="text-white/60 text-xs mb-1">New Balance</p>
+            <p className="text-white text-lg font-bold">
+              ${result.new_balance}
+            </p>
+          </div>
 
-      // Add minimum full revolutions for smooth animation
-      const minFullRevolutions = 4;
-      const cardWidthWithGap = 192;
+          {/* Provably Fair Box */}
+          <div className="bg-[#1E202C]/50 rounded-xl p-4 border border-white/10">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-white font-bold text-sm">Provably Fair</h4>
+              <button
+                onClick={() => handleVerify(fairnessData.verify_url)}
+                className="text-xs text-blue-400 hover:text-blue-300 underline"
+              >
+                Verify Result
+              </button>
+            </div>
 
-      const originalItemsCount = crateData?.items.length || 0;
-      if (originalItemsCount === 0)
-        throw new Error("Case items not loaded correctly.");
+            <div className="space-y-2 text-xs font-mono">
+              <div className="flex justify-between">
+                <span className="text-white/50">Roll:</span>
+                <span className="text-[#39FF67] font-bold">
+                  {(fairnessData.roll * 100).toFixed(2)}%
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-white/50">Nonce:</span>
+                <span className="text-white">{fairnessData.nonce}</span>
+              </div>
 
-      // Width of one complete reel
-      const widthOfOneReel = originalItemsCount * cardWidthWithGap;
+              <div className="border-t border-white/10 pt-2 mt-2">
+                <p className="text-white/50 mb-1">Client Seed:</p>
+                <p className="text-white/80 break-all text-[10px]">
+                  {fairnessData.client_seed}
+                </p>
+              </div>
+              <div className="border-t border-white/10 pt-2">
+                <p className="text-white/50 mb-1">Server Seed Hash:</p>
+                <p className="text-white/80 break-all text-[10px]">
+                  {fairnessData.server_seed_hash}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-      // Distance for minimum revolutions
-      const revolutionsDistance = minFullRevolutions * widthOfOneReel;
+      {/* Button */}
+      <button
+        onClick={() => {
+          window.location.reload();
+        }}
+        className="w-full md:w-auto btn gradient-border shadow-[0_4px_8px_0_rgba(59,188,254,0.32)] min-h-11 mt-6 px-8 mx-auto"
+      >
+        Awesome! View Inventory
+      </button>
+    </div>
+  )
+});
 
-      // Final position based on roll
-      const finalPositionBasedOnRoll = roll * widthOfOneReel;
+    }, 500);
 
-      // Adjustment for screen center
-      const screenCenter = window.innerWidth / 2;
-      const centerAdjustment = screenCenter - cardWidthWithGap / 2;
-
-      // Calculate total distance
-      const finalX =
-        -(revolutionsDistance + finalPositionBasedOnRoll) + centerAdjustment;
-
-      // Start animation for 7 seconds
-      controls.start({
-        x: finalX,
-        transition: { duration: 7, ease: [0.22, 1, 0.36, 1] },
-      });
-
-      setTimeout(() => {
-        setSpinning(false);
-        Swal.fire({
-          title: "Congratulations!",
-          html: `
-                    <div style="text-align: center; color: white;">
-                        <p style="margin-bottom: 15px;">You won:</p>
-                        <div style="padding: 20px; border-radius: 15px; background: ${getRarityColor2(
-                          wonWeapon.rarity
-                        )}; border: 1px solid ${getRarityColor(
-            wonWeapon.rarity
-          )};">
-                            <img src="${wonWeapon.image}" alt="${
-            wonWeapon.name
-          }" style="max-width: 80%; height: auto; margin: 0 auto 15px auto;" />
-                            <h2 style="font-size: 1.5rem; font-weight: bold; color: ${getRarityColor(
-                              wonWeapon.rarity
-                            )}; margin: 0;">
-                                ${wonWeapon.name}
-                            </h2>
-                            <p style="font-size: 1.2rem; font-weight: bold;">$${parseFloat(
-                              wonWeapon.price
-                            ).toFixed(2)}</p>
-                        </div>
-                    </div>
-                `,
-          icon: "success",
-          background: "#1C1E2D",
-          color: "#FFFFFF",
-          confirmButtonText: "Awesome!",
-          confirmButtonColor: "#3085d6",
-        });
-      }, 7000);
-    } catch (err: any) {
-      Swal.fire(
-        "Error!",
-        err.message || "An unexpected error occurred.",
-        "error"
-      );
-      setSpinning(false);
-    }
-  };
-
+  } catch (err: any) {
+    console.error("❌ Error opening crate:", err);
+    
+    showToast({
+      type: 'error',
+      title: 'Error!',
+      message: err.message || 'An unexpected error occurred.',
+      duration: 4000
+    });
+    setSpinning(false);
+    
+    await controls.start({ x: 0, transition: { duration: 0.5, ease: "easeOut" } });
+  }
+};
   const incrementCout: IncreamentCoutItem[] = [
     {
       count: 2,
@@ -401,203 +693,232 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
       </PageContainer>
     );
 
-  return (
-    <PageContainer>
-      <div className="relative z-1 overflow-hidden flex flex-col gap-y-2.5 py-6 bg-[#C4CEFF]/6 rounded-[20px] mb-5">
-        {Array.from({ length: activeIncrementCount }).map((_, index) => (
-          <motion.div
-            className="flex justify-center gap-3 relative -z-10"
-            animate={controls}
-            key={index}
-          >
-            {spinnerItems.map((item, idx) => (
+return (
+  <PageContainer>
+    {/* Spinner Container */}
+    <div className="relative z-1 overflow-hidden flex flex-col gap-y-2.5 py-6 bg-[#C4CEFF]/6 rounded-[20px] mb-5">
+  {Array.from({ length: activeIncrementCount }).map((_, index) => (
+        <motion.div
+          className="flex justify-center gap-3 relative"
+          animate={controls}
+          key={index}
+          style={{ willChange: 'transform' }}
+        >
+          {/*
+            Create seamless infinite scroll by repeating items 5 times
+            This ensures there's always content visible during the entire animation
+          */}
+      {Array.from({ length: 20 }).flatMap((_, repeatIndex) => 
+            spinnerItems.map((item, idx) => (
               <Card
                 className="min-w-45"
-                key={`spinner-item-${idx}`}
+                key={`spinner-${index}-repeat-${repeatIndex}-item-${idx}`}
                 item={item}
               />
-            ))}
-          </motion.div>
-        ))}
-        <span className="h-full flex items-center justify-center w-full absolute top-1/2 left-1/2 -translate-1/2 ml-4">
-          <svg
-            className="max-h-100 w-full"
-            style={{ maxHeight: `${400 * activeIncrementCount}px` }}
-            width="268"
-            viewBox="0 0 168 388"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <g filter="url(#filter0_f_0_1384)">
-              <rect x="77" y="90" width="13" height="207" fill="white" />
-            </g>
-            <path
-              d="M95.425 312.008C96.9566 314.674 95.0316 318 91.9564 318H75.9103C72.8351 318 70.9101 314.674 72.4417 312.008L80.4648 298.039C82.0024 295.362 85.8644 295.362 87.402 298.039L95.425 312.008Z"
-              fill="white"
-            />
-            <g filter="url(#filter1_f_0_1384)">
-              <path
-                d="M97.5002 75.6246C98.6758 72.9794 96.7396 70 93.845 70H74.155C71.2604 70 69.3242 72.9794 70.4998 75.6246L80.3447 97.7757C81.7524 100.943 86.2476 100.943 87.6552 97.7757L97.5002 75.6246Z"
-                fill="white"
-              />
-            </g>
-            <path
-              d="M95.425 75.9922C96.9566 73.3256 95.0316 70 91.9564 70H75.9103C72.8351 70 70.9101 73.3256 72.4417 75.9922L80.4648 89.9609C82.0024 92.638 85.8644 92.638 87.402 89.9609L95.425 75.9922Z"
-              fill="white"
-            />
-            <path d="M83.5 94L83.5 294" stroke="white" strokeWidth="1.5" />
-            <g filter="url(#filter2_f_0_1384)">
-              <path
-                d="M97.5002 312.375C98.6758 315.021 96.7396 318 93.845 318H74.155C71.2604 318 69.3242 315.021 70.4998 312.375L80.3447 290.224C81.7524 287.057 86.2476 287.057 87.6552 290.224L97.5002 312.375Z"
-                fill="white"
-              />
-            </g>
-            <defs>
-              <filter
-                id="filter0_f_0_1384"
-                x="27"
-                y="40"
-                width="113"
-                height="307"
-                filterUnits="userSpaceOnUse"
-                colorInterpolationFilters="sRGB"
-              >
-                <feFlood floodOpacity="0" result="BackgroundImageFix" />
-                <feBlend
-                  mode="normal"
-                  in="SourceGraphic"
-                  in2="BackgroundImageFix"
-                  result="shape"
-                />
-                <feGaussianBlur
-                  stdDeviation="25"
-                  result="effect1_foregroundBlur_0_1384"
-                />
-              </filter>
-              <filter
-                id="filter1_f_0_1384"
-                x="0.150635"
-                y="0"
-                width="167.699"
-                height="170.151"
-                filterUnits="userSpaceOnUse"
-                colorInterpolationFilters="sRGB"
-              >
-                <feFlood floodOpacity="0" result="BackgroundImageFix" />
-                <feBlend
-                  mode="normal"
-                  in="SourceGraphic"
-                  in2="BackgroundImageFix"
-                  result="shape"
-                />
-                <feGaussianBlur
-                  stdDeviation="35"
-                  result="effect1_foregroundBlur_0_1384"
-                />
-              </filter>
-              <filter
-                id="filter2_f_0_1384"
-                x="0.150635"
-                y="217.849"
-                width="167.699"
-                height="170.151"
-                filterUnits="userSpaceOnUse"
-                colorInterpolationFilters="sRGB"
-              >
-                <feFlood floodOpacity="0" result="BackgroundImageFix" />
-                <feBlend
-                  mode="normal"
-                  in="SourceGraphic"
-                  in2="BackgroundImageFix"
-                  result="shape"
-                />
-                <feGaussianBlur
-                  stdDeviation="35"
-                  result="effect1_foregroundBlur_0_1384"
-                />
-              </filter>
-            </defs>
-          </svg>
-        </span>
-      </div>
-
-      <div className="flex items-center gap-3 flex-wrap justify-between">
-        <div className="hidden md:flex items-center gap-3">
-          {spinIcons.map((item, index) => {
-            const isActive = selectedSpins.includes(index);
-            return (
-              <button
-                key={index}
-                onClick={() => {
-                  setSelectedSpins((prev) =>
-                    prev.includes(index)
-                      ? prev.filter((i) => i !== index)
-                      : [...prev, index]
-                  );
-                }}
-                className={`size-11 flex items-center justify-center bg-[var(--bg-color)]/10 text-[var(--text-color)] rounded-full border border-solid ${
-                  isActive ? "border-[var(--bg-color)]" : "border-transparent"
-                }`}
-                style={
-                  {
-                    "--bg-color": item.bgColor,
-                    "--text-color": item.textColor || item.bgColor,
-                  } as React.CSSProperties
-                }
-              >
-                {item.icon}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="flex items-center gap-3">
-          {incrementCout.map((item, index) => (
-            <button
-              // onClick={() => setActiveIncrementCount(item.count)}
-              key={index}
-              className="flex items-center justify-center rounded-full hover:scale-105 text-base text-white uppercase min-w-12 min-h-9 p-px text-shadow-[0_4p_ 4px_rgba(15,16,44,0.12)]"
-              style={{
-                border: "double 1px transparent",
-                backgroundImage: `${item.color}, linear-gradient(180deg,rgba(255, 255, 255, .2) 0%, rgba(255, 255, 255, 0.2) 100%)`,
-                backgroundOrigin: "border-box",
-                backgroundClip: "content-box, border-box",
-              }}
-            >
-              {item.count}
-            </button>
-          ))}
-        </div>
-
-        <button
-          onClick={handleOpenCrate}
-          disabled={spinning}
-          className="w-max gradient-border-two rounded-full flex items-center text-white text-sm font-bold min-h-11 shadow-[0_2px_8px_0_rgba(59,188,254,0.32)] disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          <span className="block px-5">
-            {spinning ? "Opening..." : `Open for $${crateData.price}`}
-          </span>
-        </button>
-      </div>
-
-      <div className="flex flex-col gap-y-5 mt-6">
-        <h4 className="text-2xl">All Cases</h4>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          {casesLoading ? (
-            [...Array(10)].map((_, index) => (
-              <div key={index} className="animate-pulse bg-[#1C1E2D]/50 border border-white/10 rounded-2xl h-64"></div>
             ))
-          ) : allCases.length > 0 ? (
-            allCases.map((item, index) => (
-              <BuyCard item={item} key={index} path={`/case/${item.id}`} />
-            ))
-          ) : (
-            <div className="col-span-full text-center py-12 text-gray-400">
-              No cases available at the moment.
-            </div>
           )}
-        </div>
+        </motion.div>
+      ))}
+
+      {/* Center Indicator - stays fixed in the middle */}
+      <span className="h-full flex items-center justify-center w-full absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-10">
+        <svg
+          className="max-h-100 w-full"
+          style={{ maxHeight: `${400 * activeIncrementCount}px` }}
+          width="268"
+          viewBox="0 0 168 388"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <g filter="url(#filter0_f_0_1384)">
+            <rect x="77" y="90" width="13" height="207" fill="white" />
+          </g>
+          <path
+            d="M95.425 312.008C96.9566 314.674 95.0316 318 91.9564 318H75.9103C72.8351 318 70.9101 314.674 72.4417 312.008L80.4648 298.039C82.0024 295.362 85.8644 295.362 87.402 298.039L95.425 312.008Z"
+            fill="white"
+          />
+          <g filter="url(#filter1_f_0_1384)">
+            <path
+              d="M97.5002 75.6246C98.6758 72.9794 96.7396 70 93.845 70H74.155C71.2604 70 69.3242 72.9794 70.4998 75.6246L80.3447 97.7757C81.7524 100.943 86.2476 100.943 87.6552 97.7757L97.5002 75.6246Z"
+              fill="white"
+            />
+          </g>
+          <path
+            d="M95.425 75.9922C96.9566 73.3256 95.0316 70 91.9564 70H75.9103C72.8351 70 70.9101 73.3256 72.4417 75.9922L80.4648 89.9609C82.0024 92.638 85.8644 92.638 87.402 89.9609L95.425 75.9922Z"
+            fill="white"
+          />
+          <path d="M83.5 94L83.5 294" stroke="white" strokeWidth="1.5" />
+          <g filter="url(#filter2_f_0_1384)">
+            <path
+              d="M97.5002 312.375C98.6758 315.021 96.7396 318 93.845 318H74.155C71.2604 318 69.3242 315.021 70.4998 312.375L80.3447 290.224C81.7524 287.057 86.2476 287.057 87.6552 290.224L97.5002 312.375Z"
+              fill="white"
+            />
+          </g>
+          <defs>
+            <filter
+              id="filter0_f_0_1384"
+              x="27"
+              y="40"
+              width="113"
+              height="307"
+              filterUnits="userSpaceOnUse"
+              colorInterpolationFilters="sRGB"
+            >
+              <feFlood floodOpacity="0" result="BackgroundImageFix" />
+              <feBlend
+                mode="normal"
+                in="SourceGraphic"
+                in2="BackgroundImageFix"
+                result="shape"
+              />
+              <feGaussianBlur
+                stdDeviation="25"
+                result="effect1_foregroundBlur_0_1384"
+              />
+            </filter>
+            <filter
+              id="filter1_f_0_1384"
+              x="0.150635"
+              y="0"
+              width="167.699"
+              height="170.151"
+              filterUnits="userSpaceOnUse"
+              colorInterpolationFilters="sRGB"
+            >
+              <feFlood floodOpacity="0" result="BackgroundImageFix" />
+              <feBlend
+                mode="normal"
+                in="SourceGraphic"
+                in2="BackgroundImageFix"
+                result="shape"
+              />
+              <feGaussianBlur
+                stdDeviation="35"
+                result="effect1_foregroundBlur_0_1384"
+              />
+            </filter>
+            <filter
+              id="filter2_f_0_1384"
+              x="0.150635"
+              y="217.849"
+              width="167.699"
+              height="170.151"
+              filterUnits="userSpaceOnUse"
+              colorInterpolationFilters="sRGB"
+            >
+              <feFlood floodOpacity="0" result="BackgroundImageFix" />
+              <feBlend
+                mode="normal"
+                in="SourceGraphic"
+                in2="BackgroundImageFix"
+                result="shape"
+              />
+              <feGaussianBlur
+                stdDeviation="35"
+                result="effect1_foregroundBlur_0_1384"
+              />
+            </filter>
+          </defs>
+        </svg>
+      </span>
+    </div>
+
+    {/* Controls Section */}
+    <div className="flex items-center gap-3 flex-wrap justify-between">
+      <div className="hidden md:flex items-center gap-3">
+        {spinIcons.map((item, index) => {
+          const isActive = selectedSpins.includes(index);
+          return (
+            <button
+              key={index}
+              onClick={() => {
+                setSelectedSpins((prev) =>
+                  prev.includes(index)
+                    ? prev.filter((i) => i !== index)
+                    : [...prev, index]
+                );
+              }}
+              className={`size-11 flex items-center justify-center bg-[var(--bg-color)]/10 text-[var(--text-color)] rounded-full border border-solid ${
+                isActive ? "border-[var(--bg-color)]" : "border-transparent"
+              }`}
+              style={
+                {
+                  "--bg-color": item.bgColor,
+                  "--text-color": item.textColor || item.bgColor,
+                } as React.CSSProperties
+              }
+            >
+              {item.icon}
+            </button>
+          );
+        })}
       </div>
-    </PageContainer>
-  );
+
+      <div className="flex items-center gap-3">
+        {incrementCout.map((item, index) => (
+          <button
+            key={index}
+            className="flex items-center justify-center rounded-full hover:scale-105 text-base text-white uppercase min-w-12 min-h-9 p-px text-shadow-[0_4p_ 4px_rgba(15,16,44,0.12)]"
+            style={{
+              border: "double 1px transparent",
+              backgroundImage: `${item.color}, linear-gradient(180deg,rgba(255, 255, 255, .2) 0%, rgba(255, 255, 255, 0.2) 100%)`,
+              backgroundOrigin: "border-box",
+              backgroundClip: "content-box, border-box",
+            }}
+          >
+            {item.count}
+          </button>
+        ))}
+      </div>
+
+      <button
+        onClick={handleOpenCrate}
+        disabled={spinning}
+        className="w-max gradient-border-two rounded-full flex items-center text-white text-sm font-bold min-h-11 shadow-[0_2px_8px_0_rgba(59,188,254,0.32)] disabled:opacity-60 disabled:cursor-not-allowed"
+      >
+        <span className="block px-5">
+          {spinning ? "Opening..." : `Open for $${crateData.price}`}
+        </span>
+      </button>
+    </div>
+
+    {/* Inventory Section */}
+    <div className="flex flex-col gap-y-5 mt-6">
+      <h4 className="text-2xl">Your Inventory</h4>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4 pb-8 pd:10">
+        {inventoryLoading ? (
+          <div className="col-span-full text-center py-20 text-white">
+            Loading inventory...
+          </div>
+        ) : inventoryItems.length > 0 ? (
+          inventoryItems.map((item) => {
+            const weapon = item.base_weapon;
+            if (!weapon) return null;
+
+            return (
+              <BuyCard
+                item={{
+                  id: item.id.toString(),
+                  img: weapon.image,
+                  price: `$${parseFloat(weapon.price).toFixed(2)}`,
+                  des: weapon.name,
+                  color: getRarityColor(weapon.rarity),
+                  btn: item.is_sold ? "Sold" : "Sell Now",
+                }}
+                key={item.id}
+                path={`/inventory/${item.id}`}
+              />
+            );
+          })
+        ) : (
+          <div className="col-span-full text-center py-20 text-white/60">
+            {inventoryItems.length === 0
+              ? "Your inventory is empty. Start opening cases to collect items!"
+              : "No items match your search criteria"}
+          </div>
+        )}
+      </div>
+    </div>
+  </PageContainer>
+);
 }

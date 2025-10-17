@@ -27,6 +27,11 @@ export default function Page({ }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // New state for wallet balance
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [walletError, setWalletError] = useState<string | null>(null);
+
   const linearBorder = `relative z-1
              after:content-[''] after:absolute after:-z-1 after:inset-0 after:rounded-[20px] 
              after:border-2 after:border-transparent 
@@ -50,6 +55,50 @@ export default function Page({ }: Props) {
       <path d="M10 6.25C10.6904 6.25 11.25 5.69036 11.25 5C11.25 4.30964 10.6904 3.75 10 3.75C9.30964 3.75 8.75 4.30964 8.75 5C8.75 5.69036 9.30964 6.25 10 6.25Z" fill="currentColor"/>
     </svg>
   )
+
+  // Fallback gift card for demo/testing
+  const fallbackGiftCard: GiftCard[] = [
+    {
+      id: '1',
+      logo: <GiftIcon className="max-w-20 max-h-14 md:max-w-30 md:max-h-24 lg:max-w-max lg:max-h-max" />,
+      text: "Google Pay",
+      name: "Google Pay",
+      image: "",
+      price: "100",
+      description: "Google Pay Gift Card",
+      dollar: ["$20", "$30", "$60", "$100"]
+    },
+  ];
+
+  const [activeGiftCard, setActiveGiftCard] = useState<GiftCard | null>(null);
+  const [selectedDollar, setSelectedDollar] = useState<string>('');
+
+  // Move these useState declarations up, before any useEffect that uses them
+  const [openModal, setOpenModal] = useState(false);
+  const [openWallet, setOpenWallet] = useState(false);
+  const [iscopied, setIsCopied] = useState(false);
+  
+  const walletItems: walletItem[] = [
+    {
+      name: 'Crypto Balance',
+      icon: (<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M9.37533 6.53965C8.59541 6.75291 8.12533 7.35137 8.12533 7.91675C8.12533 8.48213 8.59541 9.08059 9.37533 9.29385V6.53965Z" fill="currentColor" />
+        <path d="M10.6253 10.7063V13.4605C11.4052 13.2473 11.8753 12.6488 11.8753 12.0834C11.8753 11.518 11.4052 10.9196 10.6253 10.7063Z" fill="currentColor" />
+        <path fillRule="evenodd" clipRule="evenodd" d="M18.3337 10.0001C18.3337 14.6025 14.6027 18.3334 10.0003 18.3334C5.39795 18.3334 1.66699 14.6025 1.66699 10.0001C1.66699 5.39771 5.39795 1.66675 10.0003 1.66675C14.6027 1.66675 18.3337 5.39771 18.3337 10.0001ZM10.0003 4.37508C10.3455 4.37508 10.6253 4.6549 10.6253 5.00008V5.26403C11.984 5.50731 13.1253 6.52809 13.1253 7.91675C13.1253 8.26193 12.8455 8.54175 12.5003 8.54175C12.1551 8.54175 11.8753 8.26193 11.8753 7.91675C11.8753 7.35137 11.4052 6.75291 10.6253 6.53965V9.43069C11.984 9.67397 13.1253 10.6948 13.1253 12.0834C13.1253 13.4721 11.984 14.4929 10.6253 14.7361V15.0001C10.6253 15.3453 10.3455 15.6251 10.0003 15.6251C9.65515 15.6251 9.37533 15.3453 9.37533 15.0001V14.7361C8.01663 14.4929 6.87533 13.4721 6.87533 12.0834C6.87533 11.7382 7.15515 11.4584 7.50033 11.4584C7.8455 11.4584 8.12533 11.7382 8.12533 12.0834C8.12533 12.6488 8.59541 13.2473 9.37533 13.4605V10.5695C8.01663 10.3262 6.87533 9.30541 6.87533 7.91675C6.87533 6.52809 8.01663 5.50731 9.37533 5.26403V5.00008C9.37533 4.6549 9.65515 4.37508 10.0003 4.37508Z" fill="currentColor" />
+      </svg>)
+    },
+    {
+      name: 'Wallet Balance',
+      icon: (<svg width="21" height="20" viewBox="0 0 21 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path fillRule="evenodd" clipRule="evenodd" d="M17.5091 8.21723C17.4636 8.21433 17.414 8.21435 17.3626 8.21437L17.3498 8.21437H15.3349C13.6742 8.21437 12.2531 9.53192 12.2531 11.2501C12.2531 12.9683 13.6742 14.2858 15.3349 14.2858H17.3498L17.3626 14.2858C17.414 14.2858 17.4636 14.2858 17.5091 14.2829C18.1837 14.24 18.7803 13.708 18.8304 12.9648C18.8337 12.9161 18.8337 12.8636 18.8337 12.8149L18.8336 12.8017V9.6985L18.8337 9.68529C18.8337 9.6366 18.8337 9.58408 18.8304 9.53535C18.7803 8.79221 18.1837 8.26016 17.5091 8.21723ZM15.1563 12.0596C15.5839 12.0596 15.9305 11.6972 15.9305 11.2501C15.9305 10.803 15.5839 10.4406 15.1563 10.4406C14.7287 10.4406 14.3821 10.803 14.3821 11.2501C14.3821 11.6972 14.7287 12.0596 15.1563 12.0596Z" fill="currentColor" />
+        <path fillRule="evenodd" clipRule="evenodd" d="M17.3621 15.5001C17.4819 15.497 17.5725 15.6088 17.54 15.725C17.3788 16.3017 17.1229 16.7933 16.7122 17.2072C16.1111 17.813 15.3489 18.0818 14.4072 18.2094C13.4921 18.3334 12.323 18.3334 10.8468 18.3334H9.1498C7.67368 18.3334 6.5045 18.3334 5.58946 18.2094C4.64776 18.0818 3.88555 17.813 3.28446 17.2072C2.68336 16.6014 2.4166 15.8332 2.28999 14.8841C2.16697 13.9618 2.16698 12.7835 2.16699 11.2958V11.2044C2.16698 9.7167 2.16697 8.53833 2.28999 7.61611C2.4166 6.66701 2.68336 5.89881 3.28446 5.29299C3.88555 4.68718 4.64776 4.41832 5.58946 4.29072C6.5045 4.16673 7.67368 4.16674 9.14979 4.16675L10.8468 4.16675C12.323 4.16674 13.4921 4.16673 14.4072 4.29071C15.3489 4.41832 16.1111 4.68717 16.7122 5.29299C17.1228 5.70689 17.3788 6.19845 17.54 6.77518C17.5725 6.89141 17.4819 7.00321 17.3621 7.00009L15.3349 7.00009C13.0564 7.00009 11.0482 8.81415 11.0482 11.2501C11.0482 13.686 13.0564 15.5001 15.3349 15.5001L17.3621 15.5001ZM5.17904 7.40484C4.84634 7.40484 4.57663 7.67667 4.57663 8.01199C4.57663 8.3473 4.84634 8.61913 5.17904 8.61913H8.39189C8.72459 8.61913 8.9943 8.3473 8.9943 8.01199C8.9943 7.67667 8.72459 7.40484 8.39189 7.40484H5.17904Z" fill="currentColor" />
+        <path d="M6.98089 3.35374L8.61323 2.15113C9.48986 1.50529 10.6775 1.50529 11.5541 2.15113L13.195 3.36006C12.5089 3.33338 11.7427 3.3334 10.9027 3.33342H9.09393C8.32635 3.33340 7.62041 3.33338 6.98089 3.35374Z" fill="currentColor" fillOpacity="0.5" />
+      </svg>)
+    },
+  ];
+
+  // Initialize activeWalletItem after walletItems is defined
+  const [activeWalletItem, setActiveWalletItem] = useState(walletItems[0]);
 
   // Fetch gift cards from API
   useEffect(() => {
@@ -94,27 +143,64 @@ export default function Page({ }: Props) {
 
     fetchGiftCards();
   }, []);
+ const getAuthToken = () => {
+    if (typeof window === "undefined") return null;
+    const authData = localStorage.getItem("auth");
+    if (!authData) return null;
+    try {
+      const parsed = JSON.parse(authData);
+      return parsed.token;
+    } catch {
+      return null;
+    }
+  };
 
-  // Fallback gift card for demo/testing
-  const fallbackGiftCard: GiftCard[] = [
-    {
-      id: '1',
-      logo: <GiftIcon className="max-w-20 max-h-14 md:max-w-30 md:max-h-24 lg:max-w-max lg:max-h-max" />,
-      text: "Google Pay",
-      name: "Google Pay",
-      image: "",
-      price: "100",
-      description: "Google Pay Gift Card",
-      dollar: ["$20", "$30", "$60", "$100"]
-    },
-  ];
+  const getHeaders = () => {
+    const token = getAuthToken();
+    return {
+      "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
+    };
+  };
 
-  const [activeGiftCard, setActiveGiftCard] = useState<GiftCard | null>(null);
-  const [selectedDollar, setSelectedDollar] = useState<string>('');
+  // Fetch wallet balance when the wallet modal opens and the "Wallet Balance" tab is active
+  useEffect(() => {
+    if (openWallet && activeWalletItem.name === 'Wallet Balance' && walletBalance === null && !walletLoading) {
+      const fetchWalletBalance = async () => {
+        try {
+          setWalletLoading(true);
+          setWalletError(null);
+          const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://backend.bismeel.com';
+          // Assuming user_id is 1 for this example, you might get this from context or auth
+          const response = await fetch(`${baseUrl}/api/wallet/1`, {
+        headers: getHeaders(),
+      });
+          
+          if (!response.ok) {
+            throw new Error(`Failed to fetch wallet balance: ${response.status}`);
+          }
 
-  const [openModal, setOpenModal] = useState(false);
-  const [openWallet, setOpenWallet] = useState(false);
-  const [iscopied, setIsCopied] = useState(false);
+          const result = await response.json();
+          
+          if (result.status && typeof result.total_balance === 'number') {
+            setWalletBalance(result.total_balance);
+          } else {
+            throw new Error('Invalid wallet balance response format');
+          }
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+          setWalletError(errorMessage);
+          console.error('Error fetching wallet balance:', err);
+        } finally {
+          setWalletLoading(false);
+        }
+      };
+
+      fetchWalletBalance();
+    }
+  }, [openWallet, activeWalletItem.name, walletBalance, walletLoading]); // Dependencies correctly listed
+
+
   
   const copyHandle = (e: string) => {
     if (!navigator.clipboard) {
@@ -162,32 +248,13 @@ export default function Page({ }: Props) {
 
   const handleCloseWallet = () => {
     setOpenWallet(false);
-    // Reset copied state
+    // Reset copied state and wallet balance info
     setIsCopied(false);
+    setWalletBalance(null); // Reset balance when closing wallet modal
+    setWalletError(null);
   };
 
   const displayCards = giftCards.length > 0 ? giftCards : fallbackGiftCard;
-
-  const walletItems: walletItem[] = [
-    {
-      name: 'Crypto Balance',
-      icon: (<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M9.37533 6.53965C8.59541 6.75291 8.12533 7.35137 8.12533 7.91675C8.12533 8.48213 8.59541 9.08059 9.37533 9.29385V6.53965Z" fill="currentColor" />
-        <path d="M10.6253 10.7063V13.4605C11.4052 13.2473 11.8753 12.6488 11.8753 12.0834C11.8753 11.518 11.4052 10.9196 10.6253 10.7063Z" fill="currentColor" />
-        <path fillRule="evenodd" clipRule="evenodd" d="M18.3337 10.0001C18.3337 14.6025 14.6027 18.3334 10.0003 18.3334C5.39795 18.3334 1.66699 14.6025 1.66699 10.0001C1.66699 5.39771 5.39795 1.66675 10.0003 1.66675C14.6027 1.66675 18.3337 5.39771 18.3337 10.0001ZM10.0003 4.37508C10.3455 4.37508 10.6253 4.6549 10.6253 5.00008V5.26403C11.984 5.50731 13.1253 6.52809 13.1253 7.91675C13.1253 8.26193 12.8455 8.54175 12.5003 8.54175C12.1551 8.54175 11.8753 8.26193 11.8753 7.91675C11.8753 7.35137 11.4052 6.75291 10.6253 6.53965V9.43069C11.984 9.67397 13.1253 10.6948 13.1253 12.0834C13.1253 13.4721 11.984 14.4929 10.6253 14.7361V15.0001C10.6253 15.3453 10.3455 15.6251 10.0003 15.6251C9.65515 15.6251 9.37533 15.3453 9.37533 15.0001V14.7361C8.01663 14.4929 6.87533 13.4721 6.87533 12.0834C6.87533 11.7382 7.15515 11.4584 7.50033 11.4584C7.8455 11.4584 8.12533 11.7382 8.12533 12.0834C8.12533 12.6488 8.59541 13.2473 9.37533 13.4605V10.5695C8.01663 10.3262 6.87533 9.30541 6.87533 7.91675C6.87533 6.52809 8.01663 5.50731 9.37533 5.26403V5.00008C9.37533 4.6549 9.65515 4.37508 10.0003 4.37508Z" fill="currentColor" />
-      </svg>)
-    },
-    {
-      name: 'Wallet Balance',
-      icon: (<svg width="21" height="20" viewBox="0 0 21 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path fillRule="evenodd" clipRule="evenodd" d="M17.5091 8.21723C17.4636 8.21433 17.414 8.21435 17.3626 8.21437L17.3498 8.21437H15.3349C13.6742 8.21437 12.2531 9.53192 12.2531 11.2501C12.2531 12.9683 13.6742 14.2858 15.3349 14.2858H17.3498L17.3626 14.2858C17.414 14.2858 17.4636 14.2858 17.5091 14.2829C18.1837 14.24 18.7803 13.708 18.8304 12.9648C18.8337 12.9161 18.8337 12.8636 18.8337 12.8149L18.8336 12.8017V9.6985L18.8337 9.68529C18.8337 9.6366 18.8337 9.58408 18.8304 9.53535C18.7803 8.79221 18.1837 8.26016 17.5091 8.21723ZM15.1563 12.0596C15.5839 12.0596 15.9305 11.6972 15.9305 11.2501C15.9305 10.803 15.5839 10.4406 15.1563 10.4406C14.7287 10.4406 14.3821 10.803 14.3821 11.2501C14.3821 11.6972 14.7287 12.0596 15.1563 12.0596Z" fill="currentColor" />
-        <path fillRule="evenodd" clipRule="evenodd" d="M17.3621 15.5001C17.4819 15.497 17.5725 15.6088 17.54 15.725C17.3788 16.3017 17.1229 16.7933 16.7122 17.2072C16.1111 17.813 15.3489 18.0818 14.4072 18.2094C13.4921 18.3334 12.323 18.3334 10.8468 18.3334H9.1498C7.67368 18.3334 6.5045 18.3334 5.58946 18.2094C4.64776 18.0818 3.88555 17.813 3.28446 17.2072C2.68336 16.6014 2.4166 15.8332 2.28999 14.8841C2.16697 13.9618 2.16698 12.7835 2.16699 11.2958V11.2044C2.16698 9.7167 2.16697 8.53833 2.28999 7.61611C2.4166 6.66701 2.68336 5.89881 3.28446 5.29299C3.88555 4.68718 4.64776 4.41832 5.58946 4.29072C6.5045 4.16673 7.67368 4.16674 9.14979 4.16675L10.8468 4.16675C12.323 4.16674 13.4921 4.16673 14.4072 4.29071C15.3489 4.41832 16.1111 4.68717 16.7122 5.29299C17.1228 5.70689 17.3788 6.19845 17.54 6.77518C17.5725 6.89141 17.4819 7.00321 17.3621 7.00009L15.3349 7.00009C13.0564 7.00009 11.0482 8.81415 11.0482 11.2501C11.0482 13.686 13.0564 15.5001 15.3349 15.5001L17.3621 15.5001ZM5.17904 7.40484C4.84634 7.40484 4.57663 7.67667 4.57663 8.01199C4.57663 8.3473 4.84634 8.61913 5.17904 8.61913H8.39189C8.72459 8.61913 8.9943 8.3473 8.9943 8.01199C8.9943 7.67667 8.72459 7.40484 8.39189 7.40484H5.17904Z" fill="currentColor" />
-        <path d="M6.98089 3.35374L8.61323 2.15113C9.48986 1.50529 10.6775 1.50529 11.5541 2.15113L13.195 3.36006C12.5089 3.33338 11.7427 3.3334 10.9027 3.33342H9.09393C8.32635 3.3334 7.62041 3.33338 6.98089 3.35374Z" fill="currentColor" fillOpacity="0.5" />
-      </svg>)
-    },
-  ];
-
-  const [activeWalletItem, setActiveWalletItem] = useState(walletItems[0]);
 
   const bitcoinAddress = 'bc1qh3919y6v5ze9p2au2eeu7a8h3hd22xtj74ljjw';
 
@@ -212,10 +279,12 @@ export default function Page({ }: Props) {
       )}
 
       {!loading && !error && displayCards.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5"
+          >
           {displayCards.map((item, index) => (
             <div 
               key={item.id || index} 
+              onClick={() => handleBuyClick(item)}
               className={`rounded-2xl xl:rounded-[20px] overflow-hidden group border border-[rgba(215,222,255,0.10)] bg-[rgba(215,222,255,0.16)] backdrop-blur-[20px] cursor-pointer ${linearBorder}`}
             >
               <div className="flex items-center justify-center w-full min-h-25 md:min-h-50 relative z-1">
@@ -427,9 +496,33 @@ export default function Page({ }: Props) {
           )}
           {activeWalletItem.name === 'Wallet Balance' && (
             <div className="flex flex-col gap-3">
-              <div className="text-center text-white/50 py-8">
-                <p className="text-lg">Wallet Balance feature coming soon</p>
-              </div>
+              {walletLoading && (
+                <div className="text-center text-white/50 py-8">
+                  <p className="text-lg">Loading wallet balance...</p>
+                </div>
+              )}
+              {walletError && !walletLoading && (
+                <div className="text-center text-red-500 py-8">
+                  <p className="text-lg">Error loading balance: {walletError}</p>
+                  <button 
+                    onClick={() => setWalletBalance(null)} // Retrigger fetch on click
+                    className="text-blue-400 hover:underline mt-2"
+                  >
+                    Try again
+                  </button>
+                </div>
+              )}
+              {walletBalance !== null && !walletLoading && !walletError && (
+                <div className="text-center text-white py-8">
+                  <p className="text-lg">Your Wallet Balance:</p>
+                  <p className="text-4xl font-bold">${walletBalance.toFixed(2)}</p>
+                </div>
+              )}
+               {walletBalance === null && !walletLoading && !walletError && (
+                 <div className="text-center text-white/50 py-8">
+                   <p className="text-lg">Wallet Balance feature coming soon (or no balance found)</p>
+                 </div>
+              )}
             </div>
           )}
         </Modal>

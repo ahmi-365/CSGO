@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./index.css";
 import "./scss/style.scss";
 import Header from "@/app/components/header/Header";
+import { ToastProvider } from '@/app/contexts/ToastContext'
 
 export const metadata: Metadata = {
   title: "Clean Case",
@@ -14,8 +15,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased bg-[#171925] text-white/50 overflow-x-hidden">
+              <ToastProvider>
+
         <Header />
         {children}
+                </ToastProvider>
+
       </body>
     </html>
   );
