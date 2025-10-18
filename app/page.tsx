@@ -69,7 +69,7 @@ function ClientContent() {
   return (
     <>
       {activeHeaderTab === 'cases' && <Cases loginAuth={isAuth} />}
-      {activeHeaderTab === 'inventory' && <Inventory loginAuth={isAuth} />}
+      {activeHeaderTab === 'inventory' && <Inventory  />}
       {preloading &&
         <Preloader />
       }
