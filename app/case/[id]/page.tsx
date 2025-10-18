@@ -367,7 +367,7 @@ useEffect(() => {
 const handleOpenCrate = async () => {
   if (spinning) return;
   setSpinning(true);
-  
+
   // Reset spinner to initial position
   setCurrentPosition(0);
   await controls.start({ x: 0, transition: { duration: 0 } });
@@ -387,33 +387,22 @@ const handleOpenCrate = async () => {
 
   const client_seed = `cs-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
 
-  // Card dimensions - MUST match your CSS exactly
   const CARD_WIDTH = 180;
   const GAP = 12;
   const CARD_WIDTH_WITH_GAP = CARD_WIDTH + GAP;
   const originalItemsCount = spinnerItems.length;
   const oneReelWidth = originalItemsCount * CARD_WIDTH_WITH_GAP;
 
-  // Calculate infinite scroll parameters
-  const infiniteScrollDistance = oneReelWidth * 50;
-  const infiniteDuration = 150;
-
-  // Track animation start time
-  const animationStartTime = Date.now();
-
-  // Step 1: Start INFINITE LOOP animation
-  controls.start({
-    x: -infiniteScrollDistance,
-    transition: { 
-      duration: infiniteDuration,
+  // Start initial spin animation
+  const initialSpinPromise = controls.start({
+    x: -(oneReelWidth * 3),
+    transition: {
+      duration: 2,
       ease: "linear",
-      repeat: Infinity,
-      repeatType: "loop"
     },
   });
 
   try {
-    // Step 2: Call backend API
     const response = await fetch(`${BASE_URL}/api/crate/${crateId}/open`, {
       method: "POST",
       headers: {
@@ -423,7 +412,7 @@ const handleOpenCrate = async () => {
       },
       body: JSON.stringify({ client_seed }),
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       const msg =
@@ -434,207 +423,83 @@ const handleOpenCrate = async () => {
     }
 
     const result = await response.json();
-    const wonWeapon: CrateItem = result.result.weapon;
-    const fairnessData: FairnessData = result.result.fairness;
+    
+    // STEP 1: Extract winning weapon ID from backend response
+    const wonWeapon = result.result.weapon;
+    const wonWeaponId = wonWeapon.id;
 
     console.log("✅ Backend response received!");
-    console.log("Won weapon:", wonWeapon.name, "ID:", wonWeapon.id);
+    console.log("Won weapon:", wonWeapon.name, "ID:", wonWeaponId);
 
-    // Step 3: Find won item index in the ORIGINAL spinner items
-    const wonItemIndex = spinnerItems.findIndex(item => 
-      item.isReal && item.id === wonWeapon.id
-    );
+    // STEP 2: Find the matching item in spinner items array
+    const wonItemIndex = spinnerItems.findIndex(item => item.id === wonWeaponId);
 
     if (wonItemIndex === -1) {
-      console.error("❌ Won weapon not found!");
-      console.error("Won weapon ID:", wonWeapon.id);
-      console.error("Won weapon name:", wonWeapon.name);
-      console.error("Available items:", spinnerItems.map(i => ({ 
-        id: i.id, 
-        name: i.name, 
-        isReal: i.isReal 
-      })));
-      throw new Error("Won item not found in spinner");
+      console.error("❌ Won weapon not found in spinner!");
+      throw new Error("Won item not found in spinner!");
     }
 
     console.log("✅ Found won item at index:", wonItemIndex, "Name:", wonWeapon.name);
 
-    // Step 4: Calculate EXACT current position at this microsecond
-    const elapsed = (Date.now() - animationStartTime) / 1000; // seconds
-    const cycleProgress = (elapsed % infiniteDuration) / infiniteDuration; // 0 to 1 within one cycle
-    const currentX = -(cycleProgress * infiniteScrollDistance); // actual X position
-    
-    // How far we've traveled in terms of reels
-    const currentPositionInReels = Math.abs(currentX) / oneReelWidth;
-    const currentReelIndex = Math.floor(currentPositionInReels);
-    
-    // We want to land exactly on the won item, several reels ahead
-    const MIN_REELS_AHEAD = 5;
-    const targetReelIndex = currentReelIndex + MIN_REELS_AHEAD;
-    
-    // Calculate the exact pixel position of the winning card's LEFT edge
-    const winningCardLeftPosition = (targetReelIndex * oneReelWidth) + (wonItemIndex * CARD_WIDTH_WITH_GAP);
-    
-    // CRITICAL FIX: Use window.innerWidth / 2 as the true center
-    // The indicator SVG is centered on the screen, not the container
-    const screenCenter = window.innerWidth / 2;
-    const cardCenter = CARD_WIDTH / 2;
-    
-    // Final position: align the card's center with screen center
-    const finalX = -winningCardLeftPosition + screenCenter - cardCenter;
+    // Wait for initial spin to complete
+    await initialSpinPromise;
 
-    console.log("🎯 DETAILED Landing Calculation:", {
-      timestamp: new Date().toISOString(),
-      elapsed: `${elapsed.toFixed(3)}s`,
-      cycleProgress: `${(cycleProgress * 100).toFixed(2)}%`,
-      currentX: `${currentX.toFixed(2)}px`,
-      currentPositionInReels: currentPositionInReels.toFixed(3),
-      currentReelIndex,
+    // STEP 3: Calculate exact position to land on winning item
+    const viewportCenter = window.innerWidth / 2;
+    
+    // Position of winning item within one reel
+    const winningItemPosition = wonItemIndex * CARD_WIDTH_WITH_GAP;
+    
+    // Add extra reels for spinning effect (10 full loops)
+    const extraReels = 10;
+    const extraDistance = extraReels * oneReelWidth;
+    
+    // STEP 4: Calculate final position to center the winning item
+  // STEP 4: Calculate final position to center the winning item
+const finalX = -(
+  extraDistance + 
+  winningItemPosition - 
+  (viewportCenter - CARD_WIDTH / 2)
+);
+
+// CORRECTION: Adjust by one card width to fix off-by-one error
+const correctedFinalX = finalX + CARD_WIDTH_WITH_GAP;
+    console.log("🎯 Landing Calculation:", {
       wonItemIndex,
       wonItemName: wonWeapon.name,
-      wonItemId: wonWeapon.id,
-      targetReelIndex,
-      winningCardLeftPosition: `${winningCardLeftPosition}px`,
-      screenCenter: `${screenCenter}px`,
-      cardCenter: `${cardCenter}px`,
-      finalX: `${finalX.toFixed(2)}px`,
+      winningItemPosition: `${winningItemPosition}px`,
+      viewportCenter: `${viewportCenter}px`,
+      CARD_WIDTH,
       oneReelWidth: `${oneReelWidth}px`,
-      totalItems: spinnerItems.length,
-      cardWidth: CARD_WIDTH,
-      gap: GAP,
-      windowWidth: window.innerWidth
+      extraReels,
+      finalX: `${finalX}px`
     });
 
-    // Step 5: CRITICAL - Stop the infinite animation properly
-    controls.set({ x: currentX });
-    await new Promise(resolve => setTimeout(resolve, 50));
-    
-    // Now animate to the final position
-    await controls.start({
-      x: finalX,
-      transition: { 
-        duration: 4,
-        ease: [0.25, 0.1, 0.25, 1]
+    // STEP 5: Animate to final position with deceleration
+   await controls.start({
+  x: correctedFinalX,  // Use corrected value instead of finalX
+  transition: {
+        duration: 5,
+        ease: [0.2, 0.65, 0.3, 0.9], // Smooth deceleration
       },
     });
 
-    console.log("✅ Animation completed! Stopped at:", finalX);
-    console.log("✅ Should be showing:", wonWeapon.name, "at index:", wonItemIndex);
+    console.log("✅ Animation completed! Centered on:", wonWeapon.name);
 
-    // Step 6: Show result
+    // Show success toast
     setTimeout(() => {
       setSpinning(false);
-      
-   showToast({
-  duration: 0,
-  customContent: (
-    <div className="text-center max-w-3xl w-full mx-auto px-4">
-      <h2 className="text-white text-2xl font-bold mb-3">
-        Congratulations!
-      </h2>
-      <p className="text-white/60 mb-6 text-sm">
-        You’ve unlocked a new reward item!
-      </p>
-
-      {/* Two-column layout */}
-      <div className="flex flex-col md:flex-row gap-6 items-center justify-between text-left">
-        {/* Left — Weapon Image + Info */}
-        <div
-          className="flex-1 p-6 rounded-2xl border relative overflow-hidden flex flex-col items-center"
-          style={{
-            backgroundColor: getRarityColor2(wonWeapon.rarity),
-            borderColor: getRarityColor(wonWeapon.rarity)
-          }}
-        >
-          <div
-            className="absolute inset-0 opacity-20 blur-xl"
-            style={{ backgroundColor: getRarityColor(wonWeapon.rarity) }}
-          />
-          <img
-            src={wonWeapon.image}
-            alt={wonWeapon.name}
-            className="max-w-[180px] md:max-w-[220px] h-auto mx-auto mb-3 relative z-10 drop-shadow-lg"
-          />
-          <h3
-            className="text-xl font-bold mb-1 relative z-10 text-center"
-            style={{ color: getRarityColor(wonWeapon.rarity) }}
-          >
-            {wonWeapon.name}
-          </h3>
-          <p className="text-white text-lg font-bold relative z-10">
-            ${parseFloat(wonWeapon.price).toFixed(2)}
-          </p>
-        </div>
-
-        {/* Right — Info and Fairness */}
-        <div className="flex-1 space-y-4 w-full">
-          {/* Balance Box */}
-          <div className="bg-white/5 rounded-xl p-3 border border-white/10">
-            <p className="text-white/60 text-xs mb-1">New Balance</p>
-            <p className="text-white text-lg font-bold">
-              ${result.new_balance}
-            </p>
-          </div>
-
-          {/* Provably Fair Box */}
-          <div className="bg-[#1E202C]/50 rounded-xl p-4 border border-white/10">
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="text-white font-bold text-sm">Provably Fair</h4>
-              <button
-                onClick={() => handleVerify(fairnessData.verify_url)}
-                className="text-xs text-blue-400 hover:text-blue-300 underline"
-              >
-                Verify Result
-              </button>
-            </div>
-
-            <div className="space-y-2 text-xs font-mono">
-              <div className="flex justify-between">
-                <span className="text-white/50">Roll:</span>
-                <span className="text-[#39FF67] font-bold">
-                  {(fairnessData.roll * 100).toFixed(2)}%
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-white/50">Nonce:</span>
-                <span className="text-white">{fairnessData.nonce}</span>
-              </div>
-
-              <div className="border-t border-white/10 pt-2 mt-2">
-                <p className="text-white/50 mb-1">Client Seed:</p>
-                <p className="text-white/80 break-all text-[10px]">
-                  {fairnessData.client_seed}
-                </p>
-              </div>
-              <div className="border-t border-white/10 pt-2">
-                <p className="text-white/50 mb-1">Server Seed Hash:</p>
-                <p className="text-white/80 break-all text-[10px]">
-                  {fairnessData.server_seed_hash}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Button */}
-      <button
-        onClick={() => {
-          window.location.reload();
-        }}
-        className="w-full md:w-auto btn gradient-border shadow-[0_4px_8px_0_rgba(59,188,254,0.32)] min-h-11 mt-6 px-8 mx-auto"
-      >
-        Awesome! View Inventory
-      </button>
-    </div>
-  )
-});
-
+        showToast({
+          type: 'success',
+          title: 'Congratulations!',
+          message: `You won ${wonWeapon.name}!`,
+          duration: 5000
+        });
     }, 500);
 
   } catch (err: any) {
     console.error("❌ Error opening crate:", err);
-    
+
     showToast({
       type: 'error',
       title: 'Error!',
@@ -642,7 +507,8 @@ const handleOpenCrate = async () => {
       duration: 4000
     });
     setSpinning(false);
-    
+
+    // Reset spinner on error
     await controls.start({ x: 0, transition: { duration: 0.5, ease: "easeOut" } });
   }
 };
