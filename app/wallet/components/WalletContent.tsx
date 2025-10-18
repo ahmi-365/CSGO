@@ -319,7 +319,7 @@ export default function WalletContent({}: Props) {
                       <span className="mb-sm md:text-base lg:text-lg block text-white font-satoshi font-bold !leading-[120%] mb-2">
                         ${item.value}
                       </span>
-                      <div className="flex items-center gap-2">
+                      {/* <div className="flex items-center gap-2">
                         <svg
                           className="flex-none"
                           width="16"
@@ -338,7 +338,7 @@ export default function WalletContent({}: Props) {
                         <h4 className="text-xs text-[#39FF67] font-satoshi font-medium !leading-[100%]">
                           {item.share_percent}
                         </h4>
-                      </div>
+                      </div> */}
                     </div>
                   </div>
                 ))}

@@ -6,6 +6,7 @@ interface Item {
   icon?: string;
   name?: string;
   color?: string;
+   value?: string;
 }
 
 interface Props {

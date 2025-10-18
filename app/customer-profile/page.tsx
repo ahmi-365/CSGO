@@ -128,55 +128,56 @@ export default function ProfilePage({ }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [imageError, setImageError] = useState(false);
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-const getAuthToken = () => {
-  if (typeof window !== "undefined") {
-    const storedAuth = localStorage.getItem("auth");
-    if (storedAuth) {
-      try {
-        const authData = JSON.parse(storedAuth);
-        return authData.token || null;
-      } catch (err) {
-        console.error("Failed to parse auth data:", err);
-        return null;
+  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+  const getAuthToken = () => {
+    if (typeof window !== "undefined") {
+      const storedAuth = localStorage.getItem("auth");
+      if (storedAuth) {
+        try {
+          const authData = JSON.parse(storedAuth);
+          return authData.token || null;
+        } catch (err) {
+          console.error("Failed to parse auth data:", err);
+          return null;
+        }
       }
     }
-  }
-  return null;
-};
-
-useEffect(() => {
-  const fetchUserData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const token = getAuthToken(); // 👈 yahan se token milega
-      if (!token) throw new Error("No token found");
-
-      const response = await fetch(`${baseUrl}/api/user`, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch user data: ${response.status}`);
-      }
-
-      const data = await response.json();
-      setUserData(data);
-    } catch (err) {
-      console.error("Error fetching user data:", err);
-      setError(err instanceof Error ? err.message : "Failed to load user data");
-    } finally {
-      setLoading(false);
-    }
+    return null;
   };
 
-  fetchUserData();
-}, []);
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const token = getAuthToken();
+        if (!token) throw new Error("No token found");
+
+        const response = await fetch(`${baseUrl}/api/user`, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch user data: ${response.status}`);
+        }
+
+        const data = await response.json();
+        setUserData(data);
+      } catch (err) {
+        console.error("Error fetching user data:", err);
+        setError(err instanceof Error ? err.message : "Failed to load user data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, []);
 
 
   // Generate cases info from API data
@@ -435,7 +436,7 @@ useEffect(() => {
 
   if (loading) {
     return (
-      <PageContainer className='max-w-380'>
+      <PageContainer className='max-w-full px-4 md:px-6 lg:px-8'>
         <div className="flex items-center justify-center h-64">
           <div className="flex flex-col items-center gap-4">
             <Loader2 size={32} className="animate-spin text-white" />
@@ -448,7 +449,7 @@ useEffect(() => {
 
   if (error) {
     return (
-      <PageContainer className='max-w-380'>
+      <PageContainer className='max-w-full px-4 md:px-6 lg:px-8'>
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <p className="text-red-400 mb-2">Error loading profile</p>
@@ -467,7 +468,7 @@ useEffect(() => {
 
   if (!userData) {
     return (
-      <PageContainer className='max-w-380'>
+      <PageContainer className='max-w-full px-4 md:px-6 lg:px-8'>
         <div className="flex items-center justify-center h-64">
           <p className="text-white/70">No user data found</p>
         </div>
@@ -481,23 +482,24 @@ useEffect(() => {
   const overallProgress = calculateOverallProgress();
 
   return (
-    <PageContainer className='max-w-380'>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5 lg:gap-6">
-        <div className="md:col-span-2">
-          <div className="relative z-1 overflow-hidden flex items-center justify-between gap-5 rounded-[20px] p-4 md:p-5 lg:p-6 md:!pr-16.5 bg-[#66697C]/5 border border-white/8">
-            <div className="">
+<PageContainer className='max-w-full px-4 md:px-6 lg:px-8 pb-8 md:pb-12'>   
+<div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5 lg:gap-6 min-h-full">        <div className="md:col-span-2">
+          <div className="relative z-1 overflow-hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 rounded-[20px] p-4 md:p-5 lg:p-6 bg-[#66697C]/5 border border-white/8">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5">
               {renderProfileAvatar()}
-              <h4 className='text-lg md:text-xl lg:text-2xl my-1 md:my-2'>
-                {userData.user.name || 'User'}
-              </h4>
-              <div className="flex items-center gap-2 md:gap-4">
-                <Calendar size={20} color="rgba(255,255,255,0.5)" />
-                <span className='text-xs md:text-sm'>
-                  {formatJoinDate(userData.user.join_date || null)}
-                </span>
+              <div>
+                <h4 className='text-lg md:text-xl lg:text-2xl my-1 md:my-2'>
+                  {userData.user.name || 'User'}
+                </h4>
+                <div className="flex items-center gap-2 md:gap-4">
+                  <Calendar size={20} color="rgba(255,255,255,0.5)" />
+                  <span className='text-xs md:text-sm'>
+                    {formatJoinDate(userData.user.join_date || null)}
+                  </span>
+                </div>
               </div>
             </div>
-            <div className="flex flex-col gap-3.5">
+            <div className="flex flex-col gap-3.5 sm:text-right w-full sm:w-auto mt-4 sm:mt-0">
               <div className="">
                 <p className='text-base lg:text-lg xl:text-xl text-white mb-1.5 font-bold !leading-[1]'>
                   {userData.user.details?.balance || '0.00'} USD
@@ -511,12 +513,13 @@ useEffect(() => {
                 <p className='text-sm text-white/50 font-normal !leading-[120%]'>Portfolio Value</p>
               </div>
             </div>
+            {/* These blur divs are decorative and not affecting responsiveness directly, but adjust sizes if needed for smaller screens */}
             <div className='absolute -z-1 -bottom-20 -left-20 w-81 h-49 rounded-[100%] bg-[linear-gradient(159deg,#FCC811_20.64%,#F85D36_48.42%,#EF5180_63.84%,#4B71FF_92.19%,#34DDFF_106.02%)] blur-[107px] pointer-events-none' />
             <div className='absolute -z-1 -top-11 -right-16 w-81 h-49 rounded-[100%] bg-[linear-gradient(255deg,#FCC811_-7.98%,#F85D36_18.12%,#EF5180_32.61%,#4B71FF_59.25%,#34DDFF_72.25%)] blur-[107px] pointer-events-none' />
           </div>
           
           <h4 className='text-lg md:text-xl lg:text-2xl my-3 md:my-5 pt-1'>Statistics Overview</h4>
-          <div className="grid gap-4 grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
             {casesInfo.map((info, index) => (
               <InfoCard 
                 key={index} 
@@ -529,30 +532,29 @@ useEffect(() => {
             ))}
           </div>
           
-          <h4 className='text-lg md:text-xl lg:text-2xl my-5 pt-1'>Recent Activity</h4>
-          <div className="xl:max-h-[calc(100vh-580px)] overflow-y-auto">
-            <div className="w-max min-w-full">
-              {recentActivity.map((item, index) => (
-                <div key={index} className='flex items-center justify-between gap-6 border-y border-white/8 py-3'>
-                  <div className="flex items-center gap-3 md:gap-5">
+       <h4 className='text-lg md:text-xl lg:text-2xl my-5 pt-1'>Recent Activity</h4>
+<div className="pb-4">
+<div className="w-full max-h-[4 00px] overflow-y-auto">              {recentActivity.map((item, index) => (
+                <div key={index} className='flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-6 border-y border-white/8 py-3'>
+                  <div className="flex items-center gap-3 md:gap-5 w-full sm:w-auto">
                     <div 
-                      className="size-11 p-3 md:p-0 md:size-12.5 rounded-2xl flex items-center justify-center bg-[#66697C]/10 backdrop-blur-[1px]"
+                      className="size-10 p-2 sm:size-11 md:size-12.5 rounded-2xl flex items-center justify-center bg-[#66697C]/10 backdrop-blur-[1px] flex-shrink-0"
                       style={{ border: `1px solid ${item.color}20` }}
                     >
                       {item.icon}
                     </div>
-                    <div className="">
-                      <h5 className='text-sm md:text-base text-white font-bold !leading-[1] mb-1 md:mb-2'>
+                    <div className="flex-1 min-w-0">
+                      <h5 className='text-sm md:text-base text-white font-bold !leading-[1] mb-1 truncate'>
                         {item.title}
                       </h5>
-                      <p className='text-xs md:text-sm text-white/50 font-medium'>
+                      <p className='text-xs md:text-sm text-white/50 font-medium truncate'>
                         {item.des}
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-left sm:text-right w-full sm:w-auto pt-2 sm:pt-0">
                     <p 
-                      className='text-base lg:text-lg mb-2.5 font-medium !leading-[1]' 
+                      className='text-base lg:text-lg mb-1 sm:mb-2.5 font-medium !leading-[1]' 
                       style={{ color: item.color }}
                     >
                       {item.price}
@@ -568,15 +570,15 @@ useEffect(() => {
         </div>
         
         <div className="md:col-span-1">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 mt-8 md:mt-0"> {/* Added margin-top for mobile spacing */}
             <h4 className='text-lg lg:text-xl xl:text-2xl'>Achievements</h4>
-            <span className='font-light block'>{completedAchievements}/{achievements.length} Completed</span>
+            <span className='font-light block text-sm sm:text-base'>{completedAchievements}/{achievements.length} Completed</span>
           </div>
-          <div className="flex flex-col gap-3 xl:max-h-[calc(100vh-200px)] overflow-y-auto">
+          <div className="flex flex-col gap-3 xl:max-h-[calc(100vh-200px)] overflow-y-auto custom-scrollbar"> {/* Added custom-scrollbar */}
             <div className='bg-[#66697c]/5 border border-white/8 rounded-[20px] p-4 lg:p-5 xl:p-6'>
               <div className="flex items-center justify-between pb-4 border-b border-white/8">
                 <h5 className='text-base text-white font-bold !leading-[1] mb-2'>Overall Progress</h5>
-                <p>{overallProgress}%</p>
+                <p className='text-sm sm:text-base'>{overallProgress}%</p>
               </div>
               <div className="mt-4">
                 <p className='text-right text-xs text-white font-medium !leading-[1] mb-3'>{overallProgress}%</p>
@@ -595,7 +597,7 @@ useEffect(() => {
               >
                 <div className="flex items-center gap-4 lg:gap-5">
                   <div 
-                    className="size-11.5 p-3 md:p-0 md:size-12.5 rounded-2xl flex items-center justify-center bg-[#66697C]/10 backdrop-blur-[1px]"
+                    className="size-10 p-2 sm:size-11.5 md:size-12.5 rounded-2xl flex items-center justify-center bg-[#66697C]/10 backdrop-blur-[1px] flex-shrink-0"
                     style={{ border: `1px solid ${item.color}20` }}
                   >
                     {item.icon}

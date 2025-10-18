@@ -15,8 +15,8 @@ interface Props {
   step?: string;
   required?: boolean;
   // 🔑 FIX: These two props are critical for controlled components
-  value: string;
-  onChange: (
+  value: string | number;
+    onChange: (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => void;
 }

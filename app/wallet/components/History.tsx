@@ -80,7 +80,7 @@ export default function History({}: Props) {
         if (result.status && Array.isArray(result.data)) {
           setHistory(result.data);
         } else {
-          throw new Error("Invalid data format received from the server.");
+          throw new Error("Feature not available yet.");
         }
       } catch (err: any) {
         setError(err.message);
