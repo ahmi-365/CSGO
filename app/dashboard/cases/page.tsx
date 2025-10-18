@@ -6,8 +6,8 @@ import InfoCard from '@/app/components/dashboard/InfoCard';
 import { CollectionItem, caseInfoItem } from '@/app/utilities/Types';
 import Link from 'next/link';
 import { Layers, List, DollarSign, Settings, Plus, X,  Edit, Trash2, Search } from 'lucide-react';
-  import Swal from 'sweetalert2';
-
+import Input from '@/app/components/ui/Input';
+import { useToast } from '@/app/contexts/ToastContext';
 type Props = {}
 
 interface CrateFormData {
@@ -70,13 +70,26 @@ export default function Page({ }: Props) {
         loot_image: null,
         rarity_id: ''
     });
-
+    const { showToast } = useToast();
+// Existing states ke baad yeh add karein
+const [newlyCreatedCaseId, setNewlyCreatedCaseId] = useState<string | null>(null);
+const [newlyCreatedCaseName, setNewlyCreatedCaseName] = useState<string>("");
+const [weaponsForAssignment, setWeaponsForAssignment] = useState<WeaponItem[]>([]);
+const [selectedWeaponsForNewCase, setSelectedWeaponsForNewCase] = useState<WeaponItem[]>([]);
+const [draggedWeaponForCase, setDraggedWeaponForCase] = useState<WeaponItem | null>(null);
+const [isDragOverForCase, setIsDragOverForCase] = useState(false);
+const [weaponProbabilities, setWeaponProbabilities] = useState<{ [key: string]: number }>({});
     const [availableWeapons, setAvailableWeapons] = useState<WeaponItem[]>([]);
     const [assignedWeapons, setAssignedWeapons] = useState<AssignedWeapon[]>([]);
     const [selectedWeaponsToAssign, setSelectedWeaponsToAssign] = useState<string[]>([]);
     const [selectedWeaponsToUnassign, setSelectedWeaponsToUnassign] = useState<string[]>([]);
     const [weaponSearchQuery, setWeaponSearchQuery] = useState('');
     const baseUrl = 'https://backend.bismeel.com';
+// Existing modals ko replace karein with new modal structure
+const [showCreateModal, setShowCreateModal] = useState(false);
+const [showEditModal, setShowEditModal] = useState(false);
+const [showWeaponAssignModal, setShowWeaponAssignModal] = useState(false);
+const [isSubmitting, setIsSubmitting] = useState(false);
 
     const getAuthToken = () => {
         if (typeof window === 'undefined') return null;
@@ -254,35 +267,229 @@ export default function Page({ }: Props) {
         }
     };
 
-    const handleCreate = async () => {
-        try {
-            const response = await fetch(`${baseUrl}/api/admin/crates`, {
-                method: 'POST',
-                headers: getHeaders(),
-                body: JSON.stringify(formData)
-            });
+const handleCreate = async () => {
+    try {
+        const payload = {
+    ...formData,
+    rental: formData.rental ? 1 : 0,
+    price: parseFloat(formData.price),
+};
+        const response = await fetch(`${baseUrl}/api/admin/crates`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify(payload)
+        });
 
-            if (!response.ok) {
-                throw new Error('Failed to create crate');
-            }
-
-            await fetchCrates();
-            setShowModal(false);
-            resetForm();
-            alert('Case created successfully!');
-        } catch (err) {
-            alert(err instanceof Error ? err.message : 'Failed to create crate');
+        if (!response.ok) {
+            throw new Error('Failed to create crate');
         }
-    };
 
+        const result = await response.json();
+        const createdCase = result.crate || result;
+        
+        // Store created case info
+        setNewlyCreatedCaseId(createdCase.id);
+        setNewlyCreatedCaseName(formData.name);
+        
+        // Close create modal
+        setShowModal(false);
+        
+        // IMPORTANT: Wait for weapons to be fetched BEFORE opening modal
+        await fetchAvailableWeapons();
+        
+        // Now open the modal with fresh data
+        setShowWeaponAssignModal(true);
+        
+    } catch (err) {
+        alert(err instanceof Error ? err.message : 'Failed to create crate');
+    }
+};
+// Drag start handler
+const handleDragStartForCase = (weapon: WeaponItem) => {
+    setDraggedWeaponForCase(weapon);
+};
+
+// Drag end handler
+const handleDragEndForCase = () => {
+    setDraggedWeaponForCase(null);
+};
+
+// Drag over handler
+const handleDragOverForCase = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOverForCase(true);
+};
+
+// Drag leave handler
+const handleDragLeaveForCase = () => {
+    setIsDragOverForCase(false);
+};
+
+// Drop handler
+const handleDropForCase = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOverForCase(false);
+
+    if (draggedWeaponForCase && !selectedWeaponsForNewCase.find(w => w.id === draggedWeaponForCase.id)) {
+        setSelectedWeaponsForNewCase([...selectedWeaponsForNewCase, draggedWeaponForCase]);
+        setWeaponProbabilities({
+            ...weaponProbabilities,
+            [draggedWeaponForCase.id]: 0
+        });
+    }
+    setDraggedWeaponForCase(null);
+};
+
+// Remove weapon from selection
+const handleRemoveWeaponFromCase = (weaponId: string) => {
+    setSelectedWeaponsForNewCase(selectedWeaponsForNewCase.filter(w => w.id !== weaponId));
+    const newProbabilities = { ...weaponProbabilities };
+    delete newProbabilities[weaponId];
+    setWeaponProbabilities(newProbabilities);
+};
+// Existing drag handlers ke saath yeh touch handlers add karein
+
+// Touch start handler
+const handleTouchStartForCase = (e: React.TouchEvent, weapon: WeaponItem) => {
+    e.preventDefault();
+    setDraggedWeaponForCase(weapon);
+};
+
+// Touch move handler
+const handleTouchMoveForCase = (e: React.TouchEvent) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const element = document.elementFromPoint(touch.clientX, touch.clientY);
+    
+    // Check if over drop zone
+    const dropZone = document.getElementById('weapon-drop-zone');
+    if (dropZone && dropZone.contains(element)) {
+        setIsDragOverForCase(true);
+    } else {
+        setIsDragOverForCase(false);
+    }
+};
+
+// Touch end handler
+const handleTouchEndForCase = (e: React.TouchEvent) => {
+    e.preventDefault();
+    const touch = e.changedTouches[0];
+    const element = document.elementFromPoint(touch.clientX, touch.clientY);
+    
+    // Check if dropped on drop zone
+    const dropZone = document.getElementById('weapon-drop-zone');
+    if (dropZone && dropZone.contains(element) && draggedWeaponForCase) {
+        if (!selectedWeaponsForNewCase.find(w => w.id === draggedWeaponForCase.id)) {
+            setSelectedWeaponsForNewCase([...selectedWeaponsForNewCase, draggedWeaponForCase]);
+            setWeaponProbabilities({
+                ...weaponProbabilities,
+                [draggedWeaponForCase.id]: 0
+            });
+        }
+    }
+    
+    setIsDragOverForCase(false);
+    setDraggedWeaponForCase(null);
+};
+// Update probability
+const handleProbabilityChangeForCase = (weaponId: string, value: string) => {
+    setWeaponProbabilities({
+        ...weaponProbabilities,
+        [weaponId]: parseFloat(value) || 0
+    });
+};
+
+// Confirm and assign weapons
+const handleConfirmWeaponAssignment = async () => {
+    if (!newlyCreatedCaseId || selectedWeaponsForNewCase.length === 0) {
+       showToast({
+            type: 'warning',
+            title: 'No Weapons',
+            message: 'Please drag at least one weapon to assign.'
+        });
+        return;
+    }
+
+    setIsSubmitting(true); // Start loading
+    
+    try {console.log('🧪 Testing direct fetch for new crate...');
+
+        const response = await fetch(`${baseUrl}/api/admin/crates/${newlyCreatedCaseId}/assign-weapons`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({
+                weapon_ids: selectedWeaponsForNewCase.map(w => w.id)
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to assign weapons');
+        }
+
+        await fetchCrates();
+        
+        showToast({
+            type: 'success',
+            title: 'Success!',
+            message: `Case created with ${selectedWeaponsForNewCase.length} weapon(s) assigned!`,
+            duration: 2000
+        });
+
+        setShowWeaponAssignModal(false);
+        setNewlyCreatedCaseId(null);
+        setNewlyCreatedCaseName('');
+        setSelectedWeaponsForNewCase([]);
+        setWeaponProbabilities({});
+        resetForm();
+        
+    } catch (err) {
+        showToast({
+            type: 'error',
+            title: 'Error!',
+            message: 'Failed to assign weapons to case'
+        });
+    } finally {
+        setIsSubmitting(false); // Stop loading
+    }
+};
+
+// Skip weapon assignment
+const handleSkipWeaponAssignment = async () => {
+    // Wait for fetch to complete
+    await fetchCrates();
+    
+    showToast({
+        type: 'success',
+        title: 'Success!',
+        message: 'Case created successfully without weapons!',
+        duration: 2000
+    });
+
+    // Reset after fetch completes
+    setShowWeaponAssignModal(false);
+    setNewlyCreatedCaseId(null);
+    setNewlyCreatedCaseName('');
+    setSelectedWeaponsForNewCase([]);
+    setWeaponProbabilities({});
+    resetForm();
+};
+
+// Calculate total probability
+const totalProbabilityForCase = Object.values(weaponProbabilities).reduce((sum, prob) => sum + prob, 0);
     const handleUpdate = async () => {
         if (!editingCrate) return;
 
         try {
+              const payload = {
+            ...formData,
+            rental: formData.rental ? 1 : 0,      // Convert boolean to number
+            price: parseFloat(formData.price),     // Convert string to number
+        };
+
             const response = await fetch(`${baseUrl}/api/admin/crates/${editingCrate.id}`, {
                 method: 'PUT',
                 headers: getHeaders(),
-                body: JSON.stringify(formData)
+                body: JSON.stringify(payload)
             });
 
             if (!response.ok) {
@@ -398,20 +605,18 @@ const handleToggleTop = async (crateId: string, currentTopStatus: boolean) => {
 
     await fetchCrates();
 
-    Swal.fire({
-      icon: 'success',
-      title: 'Success!',
-      text: `Crate ${currentTopStatus ? 'removed from' : 'set as'} top successfully!`,
-      confirmButtonColor: '#3085d6',
-      timer: 2000,
-    });
+   showToast({
+    type: 'success',
+    title: 'Success!',
+    message: `Crate ${currentTopStatus ? 'removed from' : 'set as'} top successfully!`,
+    duration: 2000
+});
   } catch (err) {
-    Swal.fire({
-      icon: 'error',
-      title: 'Error!',
-      text: err instanceof Error ? err.message : 'Failed to toggle top status',
-      confirmButtonColor: '#d33',
-    });
+   showToast({
+    type: 'error',
+    title: 'Error!',
+    message: err instanceof Error ? err.message : 'Failed to toggle top status'
+});
   }
 };
 
@@ -548,7 +753,8 @@ const handleToggleTop = async (crateId: string, currentTopStatus: boolean) => {
             </div>
 
             {loading && (
-                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 md:gap-4">
+   <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 md:gap-4 overflow-visible">
+
                     {[...Array(10)].map((_, i) => (
                         <div key={i} className="bg-[#1A1D29] rounded-xl p-4 border border-white/10 animate-pulse">
                             <div className="aspect-square bg-gray-700 rounded-lg mb-3"></div>
@@ -576,7 +782,7 @@ const handleToggleTop = async (crateId: string, currentTopStatus: boolean) => {
             )}
 
             {!loading && !error && (
-                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 md:gap-4">
+  <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 md:gap-4 overflow-visible">
                     {card.map((singleCard) => (
                         <CollectionCard
                             key={singleCard.id}
@@ -601,7 +807,7 @@ const handleToggleTop = async (crateId: string, currentTopStatus: boolean) => {
             {/* Create/Edit Modal */}
             {showModal && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-[#1A1D29] rounded-xl border border-white/10 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <div className="rounded-2xl md:rounded-[30px] border border-white/20 bg-white/10 backdrop-blur-[20px] w-full max-w-2xl max-h-[90vh] overflow-y-auto">
                         <div className="flex items-center justify-between p-6 border-b border-white/10">
                             <h2 className="text-xl font-bold text-white">
                                 {isEditMode ? 'Edit Case' : 'Create New Case'}
@@ -617,82 +823,82 @@ const handleToggleTop = async (crateId: string, currentTopStatus: boolean) => {
                         <div className="p-6 space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-2">Name *</label>
-                                <input
+                                <Input
                                     type="text"
                                     name="name"
                                     value={formData.name}
                                     onChange={handleInputChange}
-                                    className="w-full bg-[#0D0F14] border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary"
+                                    className=""
                                     required
                                 />
                             </div>
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-2">Price *</label>
-                                <input
+                                <Input
                                     type="number"
                                     step="0.01"
                                     name="price"
                                     value={formData.price}
                                     onChange={handleInputChange}
-                                    className="w-full bg-[#0D0F14] border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary"
+                                    className=" "
                                     required
                                 />
                             </div>
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-2">Image URL *</label>
-                                <input
+                                <Input
                                     type="url"
                                     name="image"
                                     value={formData.image}
                                     onChange={handleInputChange}
-                                    className="w-full bg-[#0D0F14] border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary"
+                                    className=" "
                                     required
                                 />
                             </div>
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-2">Type</label>
-                                <input
+                                <Input
                                     type="text"
                                     name="type"
                                     value={formData.type}
                                     onChange={handleInputChange}
-                                    className="w-full bg-[#0D0F14] border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary"
+                                    className=" "
                                 />
                             </div>
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-2">Market Hash Name</label>
-                                <input
+                                <Input
                                     type="text"
                                     name="market_hash_name"
                                     value={formData.market_hash_name}
                                     onChange={handleInputChange}
-                                    className="w-full bg-[#0D0F14] border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary"
+                                    className=" "
                                 />
                             </div>
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-2">First Sale Date</label>
-                                <input
+                                <Input
                                     type="date"
                                     name="first_sale_date"
                                     value={formData.first_sale_date}
                                     onChange={handleInputChange}
-                                    className="w-full bg-[#0D0F14] border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary"
+                                    className=" "
                                 />
                             </div>
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-2">Model Player</label>
-                                <input
+                                <Input
                                     type="text"
                                     name="model_player"
                                     value={formData.model_player}
                                     onChange={handleInputChange}
-                                    className="w-full bg-[#0D0F14] border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary"
+                                    className=" "
                                 />
                             </div>
 
@@ -745,7 +951,7 @@ const handleToggleTop = async (crateId: string, currentTopStatus: boolean) => {
                                     value={formData.description || ''}
                                     onChange={handleInputChange}
                                     rows={3}
-                                    className="w-full bg-[#0D0F14] border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary resize-none"
+                                    className="w-full border-2 rounded-2xl resize-none"
                                 />
                             </div>
                         </div>
@@ -771,7 +977,7 @@ const handleToggleTop = async (crateId: string, currentTopStatus: boolean) => {
             {/* Details Modal */}
             {showDetailsModal && viewingCrate && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-[#1A1D29] rounded-xl border border-white/10 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <div className="rounded-2xl md:rounded-[30px] border border-white/20 bg-white/10 backdrop-blur-[20px] w-full max-w-2xl max-h-[90vh] overflow-y-auto">
                         <div className="flex items-center justify-between p-6 border-b border-white/10">
                             <h2 className="text-xl font-bold text-white">Case Details</h2>
                             <button 
@@ -1020,7 +1226,7 @@ const handleToggleTop = async (crateId: string, currentTopStatus: boolean) => {
                                         {/* Search Input */}
                                         <div className="mb-3 relative">
                                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                                            <input
+                                            <Input
                                                 type="text"
                                                 placeholder="Search weapons by name or ID..."
                                                 value={weaponSearchQuery}
@@ -1210,6 +1416,168 @@ const handleToggleTop = async (crateId: string, currentTopStatus: boolean) => {
                     </div>
                 </div>
             )}
+            {/* Weapon Assignment Modal */}
+{/* Weapon Assignment Modal */}
+{showWeaponAssignModal && newlyCreatedCaseId && (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-2">
+    <div className="rounded-2xl md:rounded-[20px] border border-white/20 bg-white/10 backdrop-blur-[20px] w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+      
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b border-white/10">
+        <div>
+          <h2 className="text-lg font-bold text-white">Assign Weapons to: {newlyCreatedCaseName}</h2>
+          <p className="text-xs text-gray-400 mt-1">
+            <span className="hidden md:inline">Drag weapons from left and drop them on the right</span>
+            <span className="md:hidden">Tap and hold weapons to drag</span>
+          </p>
+          <div className="mt-1">
+            <span className="text-xs">
+              <span className={totalProbabilityForCase > 100 ? 'text-red-400' : 'text-primary'}>
+                {totalProbabilityForCase.toFixed(2)}%
+              </span>
+              <span className="text-gray-400"> total probability</span>
+            </span>
+          </div>
+        </div>
+        <button 
+          onClick={() => {
+            setShowWeaponAssignModal(false);
+            setNewlyCreatedCaseId(null);
+            setSelectedWeaponsForNewCase([]);
+            setWeaponProbabilities({});
+          }}
+          className="text-gray-400 hover:text-white transition-colors"
+        >
+          <X size={20} />
+        </button>
+      </div>
+
+      {/* Body */}
+      <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+        
+        {/* Left Side - Available Weapons */}
+        <div className="md:w-1/2 md:border-r border-white/10 p-4 overflow-y-auto max-h-[40vh] md:max-h-full">
+          <h3 className="text-base font-semibold text-white mb-2">Available Weapons</h3>
+          <div className="grid grid-cols-2 md:grid-cols-2 gap-2">
+            {availableWeapons
+              .filter(weapon => !selectedWeaponsForNewCase.find(w => w.id === weapon.id))
+              .map(weapon => (
+                <div
+                  key={weapon.id}
+                  draggable
+                  onDragStart={() => handleDragStartForCase(weapon)}
+                  onDragEnd={handleDragEndForCase}
+                  onTouchStart={(e) => handleTouchStartForCase(e, weapon)}
+                  onTouchMove={handleTouchMoveForCase}
+                  onTouchEnd={handleTouchEndForCase}
+                  className={`bg-[#0D0F14] border border-white/10 rounded-lg p-2 cursor-move hover:border-primary/50 transition-all active:scale-95 ${
+                    draggedWeaponForCase?.id === weapon.id ? 'opacity-50 scale-95' : ''
+                  }`}
+                  style={{ touchAction: 'none' }}
+                >
+                  {weapon.image && (
+                    <img 
+                      src={weapon.image} 
+                      alt={weapon.name} 
+                      className="w-full h-16 object-contain rounded mb-1 pointer-events-none" 
+                    />
+                  )}
+                  <p className="text-white text-xs font-medium truncate">{weapon.name}</p>
+                  <p className="text-primary text-[10px]">${weapon.price}</p>
+                </div>
+              ))}
+          </div>
+        </div>
+
+        {/* Right Side - Drop Zone */}
+        <div className="md:w-1/2 p-4 overflow-y-auto flex-1">
+          <h3 className="text-base font-semibold text-white mb-2">
+            Selected Weapons ({selectedWeaponsForNewCase.length})
+          </h3>
+          
+          <div
+            id="weapon-drop-zone"
+            onDragOver={handleDragOverForCase}
+            onDragLeave={handleDragLeaveForCase}
+            onDrop={handleDropForCase}
+            className={`border-2 border-dashed rounded-lg p-3 min-h-[200px] md:min-h-[300px] transition-all ${
+              isDragOverForCase
+                ? 'border-primary bg-primary/10 shadow-lg shadow-primary/20'
+                : 'border-white/20 bg-white/5'
+            }`}
+          >
+            {selectedWeaponsForNewCase.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center py-10">
+                <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mb-2 animate-pulse">
+                  <Plus size={24} className="text-white/40" />
+                </div>
+                <p className="text-white/60 text-sm">Drop weapons here</p>
+                <p className="text-white/40 text-xs mt-1">
+                  <span className="hidden md:inline">Drag from the left panel</span>
+                  <span className="md:hidden">Tap and hold to drag from above</span>
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-2">
+                {selectedWeaponsForNewCase.map(weapon => (
+                  <div key={weapon.id} className="bg-[#0D0F14] border border-white/10 rounded-lg p-2 hover:border-primary/30 transition-all">
+                    <div className="flex items-start gap-2">
+                      {weapon.image && (
+                        <img 
+                          src={weapon.image} 
+                          alt={weapon.name} 
+                          className="w-12 h-12 md:w-14 md:h-14 object-contain rounded flex-shrink-0" 
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white text-xs font-medium truncate">{weapon.name}</p>
+                        <p className="text-primary text-[10px] mb-1">${weapon.price}</p>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="Probability %"
+                          value={weaponProbabilities[weapon.id] || ''}
+                          onChange={(e) => handleProbabilityChangeForCase(weapon.id, e.target.value)}
+                          className="w-full bg-[#1A1D29] border border-white/10 rounded px-2 py-1 text-[11px] text-white focus:outline-none focus:border-primary"
+                        />
+                      </div>
+                      <button
+                        onClick={() => handleRemoveWeaponFromCase(weapon.id)}
+                        className="text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded p-1 transition-all flex-shrink-0"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="flex gap-2 p-4 border-t border-white/10 bg-[#0D0F14]/50">
+        <button
+          onClick={handleSkipWeaponAssignment}
+          className="flex-1 bg-white/10 hover:bg-white/15 text-white rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+        >
+          Skip
+        </button>
+       <button
+    onClick={handleConfirmWeaponAssignment}
+    disabled={selectedWeaponsForNewCase.length === 0 || isSubmitting}
+    className="flex-1 gradient-border-two rounded-lg p-px overflow-hidden shadow-[0_4px_8px_0_rgba(59,188,254,0.32)] min-h-[40px] disabled:opacity-50 disabled:cursor-not-allowed"
+>
+    <span className="w-full h-full bg-[#1A1D29] rounded-lg flex items-center justify-center px-4 text-white font-bold text-sm">
+        {isSubmitting ? 'Saving...' : `Confirm (${selectedWeaponsForNewCase.length})`}
+    </span>
+</button>
+      </div>
+    </div>
+  </div>
+)}
+
         </div>
     )
 }

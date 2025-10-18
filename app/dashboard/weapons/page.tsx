@@ -2,10 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import { Plus, X, GripVertical, Trash2 } from "lucide-react";
-import Swal from "sweetalert2";
 import Link from "next/link";
 import  Input from "@/app/components/ui/Input";
-
+import { useToast } from '@/app/contexts/ToastContext';
 // --- Interfaces ---
 interface ApiWeapon {
   id: string;
@@ -63,6 +62,7 @@ export default function Page() {
       rarity_id: "",
     },
   ]);
+  const { showToast } = useToast();
   const [search, setSearch] = useState("");
   const [rarities, setRarities] = useState<any[]>([]);
   
@@ -177,13 +177,11 @@ export default function Page() {
     const authData = getAuthData();
     const token = authData?.token;
     if (!token) {
-      Swal.fire({
-        title: "Error!",
-        text: "You are not logged in.",
-        icon: "error",
-        background: "#1C1E2D",
-        color: "#FFFFFF",
-      });
+    showToast({
+  type: 'error',
+  title: 'Error!',
+  message: 'You are not logged in.'
+});
       return;
     }
 
@@ -197,13 +195,11 @@ export default function Page() {
     );
 
     if (invalidItems.length > 0) {
-      Swal.fire({
-        title: "Validation Error",
-        text: "Please fill in all required fields (Name, Price, and Image) for all items.",
-        icon: "warning",
-        background: "#1C1E2D",
-        color: "#FFFFFF",
-      });
+     showToast({
+  type: 'warning',
+  title: 'Validation Error',
+  message: 'Please fill in all required fields (Name, Price, and Image) for all items.'
+});
       return;
     }
 
@@ -304,13 +300,11 @@ export default function Page() {
       }
 
       if (successCount > 0 && caseItems.length === 0) {
-        Swal.fire({
-          title: "Success!",
-          text: `${successCount} item(s) created successfully!`,
-          icon: "success",
-          background: "#1C1E2D",
-          color: "#FFFFFF",
-        });
+       showToast({
+  type: 'success',
+  title: 'Success!',
+  message: `${successCount} item(s) created successfully!`
+});
         setNewItems([
           {
             name: "",
@@ -326,23 +320,19 @@ export default function Page() {
       }
 
       if (errorMessages.length > 0) {
-        Swal.fire({
-          icon: "error",
-          title: "Validation Errors",
-          text: "Failed to create some items:\n" + errorMessages.join("\n\n"),
-          background: "#1C1E2D",
-          color: "#FFFFFF",
-        });
+      showToast({
+  type: 'error',
+  title: 'Validation Errors',
+  message: "Failed to create some items:\n" + errorMessages.join("\n\n")
+});
       }
     } catch (error) {
       console.error("Error creating item:", error);
-      Swal.fire({
-        title: "Error!",
-        text: "An error occurred. Check the console for details.",
-        icon: "error",
-        background: "#1C1E2D",
-        color: "#FFFFFF",
-      });
+   showToast({
+  type: 'error',
+  title: 'Error!',
+  message: 'An error occurred. Check the console for details.'
+});
     } finally {
       setIsSubmitting(false);
     }
@@ -390,13 +380,11 @@ export default function Page() {
 
   const handleConfirmWeapons = async () => {
     if (!createdCaseId || droppedWeapons.length === 0) {
-      Swal.fire({
-        title: "No Weapons",
-        text: "Please drag at least one weapon to assign to the case.",
-        icon: "warning",
-        background: "#1C1E2D",
-        color: "#FFFFFF",
-      });
+    showToast({
+  type: 'warning',
+  title: 'No Weapons',
+  message: 'Please drag at least one weapon to assign to the case.'
+});
       return;
     }
 
@@ -421,13 +409,11 @@ export default function Page() {
       );
 
       if (response.ok) {
-        Swal.fire({
-          title: "Success!",
-          text: `Case created successfully with ${droppedWeapons.length} weapon(s) assigned!`,
-          icon: "success",
-          background: "#1C1E2D",
-          color: "#FFFFFF",
-        });
+       showToast({
+  type: 'success',
+  title: 'Success!',
+  message: `Case created successfully with ${droppedWeapons.length} weapon(s) assigned!`
+});
         
         // Reset everything
         setShowDropZone(false);
@@ -450,25 +436,20 @@ export default function Page() {
         throw new Error("Failed to assign weapons");
       }
     } catch (error) {
-      Swal.fire({
-        title: "Error!",
-        text: "Failed to assign weapons to the case.",
-        icon: "error",
-        background: "#1C1E2D",
-        color: "#FFFFFF",
-      });
+     showToast({
+  type: 'error',
+  title: 'Error!',
+  message: 'Failed to assign weapons to the case.'
+});
     }
   };
 
   const handleSkipWeapons = () => {
-    Swal.fire({
-      title: "Success!",
-      text: "Case created successfully without weapons!",
-      icon: "success",
-      background: "#1C1E2D",
-      color: "#FFFFFF",
-    });
-    
+   showToast({
+  type: 'success',
+  title: 'Success!',
+  message: 'Case created successfully without weapons!'
+});
     setShowDropZone(false);
     setCreatedCaseId(null);
     setCreatedCaseName("");

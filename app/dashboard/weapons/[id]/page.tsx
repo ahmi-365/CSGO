@@ -4,10 +4,9 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Input from "@/app/components/ui/Input";
 import Dropdown from "@/app/components/ui/Dropdown";
-import Swal from "sweetalert2";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-
+import { useToast } from '@/app/contexts/ToastContext';
 // --- Interfaces ---
 interface ApiWeapon {
   id: string;
@@ -35,7 +34,7 @@ export default function WeaponDetailPage({ params }: Props) {
   const router = useRouter();
   const resolvedParams = React.use(params);
   const { id } = resolvedParams;
-
+const { showToast } = useToast();
   const [weapon, setWeapon] = useState<ApiWeapon | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -81,13 +80,11 @@ export default function WeaponDetailPage({ params }: Props) {
     const authData = getAuthData();
     const token = authData?.token;
     if (!token) {
-      Swal.fire({
-        title: "Error!",
-        text: "Authentication error.",
-        icon: "error",
-        background: "#1C1E2D",
-        color: "#FFFFFF",
-      });
+     showToast({
+  type: 'error',
+  title: 'Error!',
+  message: 'Authentication error.'
+});
       return;
     }
     setIsUpdating(true);
@@ -120,22 +117,19 @@ export default function WeaponDetailPage({ params }: Props) {
         throw new Error(errorData.message || "Failed to update weapon.");
       }
       const updateResult = await response.json();
-      await Swal.fire({
-        title: "Success!",
-        text: updateResult.message || "Weapon updated successfully!",
-        icon: "success",
-        background: "#1C1E2D",
-        color: "#FFFFFF",
-      });
+    showToast({
+  type: 'success',
+  title: 'Success!',
+  message: updateResult.message || 'Weapon updated successfully!'
+});
+// Remove the 'await' keyword since showToast doesn't return a promise
       router.push("/dashboard/weapons");
     } catch (err: any) {
-      Swal.fire({
-        title: "Error!",
-        text: `Update failed: ${err.message}`,
-        icon: "error",
-        background: "#1C1E2D",
-        color: "#FFFFFF",
-      });
+    showToast({
+  type: 'error',
+  title: 'Error!',
+  message: `Update failed: ${err.message}`
+});
     } finally {
       setIsUpdating(false);
     }

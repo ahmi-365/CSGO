@@ -46,19 +46,18 @@ export default function CollectionCard({
             window.removeEventListener('mousedown', outClick);
         };
     }, []);
-
-    return (
-     <div
+return (
+  <div
     key={id}
-    className={`relative group cursor-pointer z-1 rounded-xl overflow-hidden bg-[#1C1E2D] ${className}`}
+    className={`relative group z-1 cursor-pointer rounded-xl bg-[#1C1E2D] ${className}`}
     style={{
         border: "double 1px transparent",
         backgroundImage: `linear-gradient(#1C1E2D, #1C1E2D), linear-gradient(${color2 || '#4A3426'} 95%, ${color || '#FB8609'} 100%)`,
         backgroundOrigin: "border-box",
         backgroundClip: "content-box, border-box"
     }}
->
-    {/* ADD THIS TOP BADGE */}
+  >
+    {/* TOP BADGE */}
     {isTop && (
         <div className="absolute top-2 left-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1 z-10 shadow-lg">
             <Star size={12} fill="white" />
@@ -67,30 +66,30 @@ export default function CollectionCard({
     )}
     
     <div className="pt-5 p-4 flex flex-col items-center gap-2 xl:gap-4">
-                <div ref={dropdownRef} className="absolute top-2.5 right-2.5 z-1">
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            toggleButton();
-                        }}
-                        className={`text-white text-xl rounded-full size-10 flex items-center justify-center hover:bg-white/10 backdrop-blur-[1px] ${action_modal_open ? 'bg-white/10' : ''}`}
-                    >
-                        <svg className='size-5 md:size-6' xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
-                            <path d="M12 13C12.5523 13 13 12.5523 13 12C13 11.4477 12.5523 11 12 11C11.4477 11 11 11.4477 11 12C11 12.5523 11.4477 13 12 13Z" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                            <path d="M12 6C12.5523 6 13 5.55228 13 5C13 4.44772 12.5523 4 12 4C11.4477 4 11 4.44772 11 5C11 5.55228 11.4477 6 12 6Z" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                            <path d="M12 20C12.5523 20 13 19.5523 13 19C13 18.4477 12.5523 18 12 18C11.4477 18 11 18.4477 11 19C11 19.5523 11.4477 20 12 20Z" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                    </button>
-                    <ActionModal
-                        className={`${action_modal_open ? 'opacity-100 visible scale-100 translate-y-0' : 'opacity-0 invisible scale-95 translate-y-2'}`}
-                        viewAction={() => { onViewDetails(id); toggleButton(); }}
-                        editAction={() => { onEdit(id); toggleButton(); }}
-                        deleteAction={() => { onDelete(id); toggleButton(); }}
-                        manageWeaponsAction={() => { onManageWeapons(id); toggleButton(); }}
-                        toggleTopAction={onToggleTop ? () => { onToggleTop(); toggleButton(); } : undefined}  // ✅ ADDED
-                        isTop={isTop}
-                    />
-                </div>
+      <div ref={dropdownRef} className="absolute top-2.5 right-2.5 z-[70]">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleButton();
+          }}
+          className={`text-white text-xl rounded-full size-8 md:size-10 flex items-center justify-center hover:bg-white/10 backdrop-blur-[1px] ${action_modal_open ? 'bg-white/10' : ''}`}
+        >
+          <svg className='size-4 md:size-5 xl:size-6' xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M12 13C12.5523 13 13 12.5523 13 12C13 11.4477 12.5523 11 12 11C11.4477 11 11 11.4477 11 12C11 12.5523 11.4477 13 12 13Z" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M12 6C12.5523 6 13 5.55228 13 5C13 4.44772 12.5523 4 12 4C11.4477 4 11 4.44772 11 5C11 5.55228 11.4477 6 12 6Z" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M12 20C12.5523 20 13 19.5523 13 19C13 18.4477 12.5523 18 12 18C11.4477 18 11 18.4477 11 19C11 19.5523 11.4477 20 12 20Z" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        <ActionModal
+          className={`${action_modal_open ? 'opacity-100 visible scale-100 translate-y-0' : 'opacity-0 invisible scale-95 translate-y-2'}`}
+          viewAction={() => { onViewDetails(id); toggleButton(); }}
+          editAction={() => { onEdit(id); toggleButton(); }}
+          deleteAction={() => { onDelete(id); toggleButton(); }}
+          manageWeaponsAction={() => { onManageWeapons(id); toggleButton(); }}
+          toggleTopAction={onToggleTop ? () => { onToggleTop(); toggleButton(); } : undefined}
+          isTop={isTop}
+        />
+      </div>
                 <div onClick={() => onViewDetails(id)} className="w-full h-full flex flex-col items-center gap-2 xl:gap-4 cursor-pointer">
                     <img src={img} alt="Collection" className="group-hover:scale-105 transition-all duration-500 w-53 h-25 md:h-36.5 object-contain mx-auto mb-2 pointer-events-none" />
                     <div className="w-full flex flex-col gap-1 text-sm">

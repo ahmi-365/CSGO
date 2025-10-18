@@ -6,7 +6,6 @@ import { CaseItem, StremItem } from "@/app/utilities/Types";
 import BuyCard from "@/app/components/cases/BuyCard";
 import Card from "@/app/deposit/componets/Card";
 import { motion, useAnimation } from "framer-motion";
-import Swal from "sweetalert2";
 import { Crosshair, Layers, Sparkles, Rocket } from "lucide-react";
 import { useToast } from "@/app/contexts/ToastContext";
 

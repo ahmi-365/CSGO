@@ -6,7 +6,7 @@ import React, { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import Swal from "sweetalert2";
 import Link from "next/link";
-
+import { useToast } from '@/app/contexts/ToastContext';
 type Props = {};
 
 // --- Interfaces ---
@@ -79,7 +79,7 @@ export default function Page({}: Props) {
   const [search, setSearch] = useState("");
   const [editingCard, setEditingCard] = useState<CardData | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
-
+const { showToast } = useToast();
   // Filter gift cards based on search
   const filteredGiftCards = giftCards.filter((giftCard) =>
     giftCard.title.toLowerCase().includes(search.toLowerCase())
@@ -152,13 +152,11 @@ export default function Page({}: Props) {
       const authData = getAuthData();
       const token = authData?.token;
       if (!token) {
-        Swal.fire({
-          title: "Error!",
-          text: "Authentication error. Please log in again.",
-          icon: "error",
-          background: "#1C1E2D",
-          color: "#FFFFFF",
-        });
+       showToast({
+  type: 'error',
+  title: 'Error!',
+  message: 'Authentication error. Please log in again.'
+});
         return;
       }
       try {
@@ -177,25 +175,21 @@ export default function Page({}: Props) {
           throw new Error(errorData.message || "Failed to delete the gift card.");
         }
         const deleteResult = await response.json();
-        Swal.fire({
-          title: "Deleted!",
-          text: deleteResult.message || "The gift card has been deleted.",
-          icon: "success",
-          background: "#1C1E2D",
-          color: "#FFFFFF",
-        });
+       showToast({
+  type: 'success',
+  title: 'Deleted!',
+  message: deleteResult.message || 'The gift card has been deleted.'
+});
         setGiftCards((prevGiftCards) =>
           prevGiftCards.filter((giftCard) => giftCard.id !== giftCardId)
         );
       } catch (err: any) {
         console.error("Deletion failed:", err);
-        Swal.fire({
-          title: "Error!",
-          text: `Failed to delete: ${err.message}`,
-          icon: "error",
-          background: "#1C1E2D",
-          color: "#FFFFFF",
-        });
+      showToast({
+  type: 'error',
+  title: 'Error!',
+  message: `Failed to delete: ${err.message}`
+});
       }
     }
   };
@@ -283,20 +277,21 @@ export default function Page({}: Props) {
     const authData = getAuthData();
     const token = authData?.token;
     if (!token) {
-      alert("You are not logged in.");
-      return;
+showToast({
+  type: 'error',
+  title: 'Authentication Error',
+  message: 'You are not logged in.'
+});      return;
     }
 
     const item = newGiftCardItems[0];
     
     if (!item.name || !item.price || !item.image) {
-      Swal.fire({
-        title: "Validation Error",
-        text: "Please fill in all required fields (Name, Price, and Image).",
-        icon: "warning",
-        background: "#1C1E2D",
-        color: "#FFFFFF",
-      });
+    showToast({
+  type: 'warning',
+  title: 'Validation Error',
+  message: 'Please fill in all required fields (Name, Price, and Image).'
+});
       return;
     }
 
@@ -333,13 +328,11 @@ export default function Page({}: Props) {
       );
 
       if (response.ok) {
-        Swal.fire({
-          title: "Success!",
-          text: "Gift card updated successfully!",
-          icon: "success",
-          background: "#1C1E2D",
-          color: "#FFFFFF",
-        });
+       showToast({
+  type: 'success',
+  title: 'Success!',
+  message: 'Gift card updated successfully!'
+});
         setEditingCard(null);
         setNewGiftCardItems([{
           name: "",
@@ -364,23 +357,19 @@ export default function Page({}: Props) {
         } else if (errorData.message) {
           errorMessage = errorData.message;
         }
-        Swal.fire({
-          icon: "error",
-          title: "Update Failed",
-          text: errorMessage,
-          background: "#1C1E2D",
-          color: "#FFFFFF",
-        });
+       showToast({
+  type: 'error',
+  title: 'Update Failed',
+  message: errorMessage
+});
       }
     } catch (error) {
       console.error("Error updating gift card:", error);
-      Swal.fire({
-        title: "Error!",
-        text: "An error occurred. Check the console for details.",
-        icon: "error",
-        background: "#1C1E2D",
-        color: "#FFFFFF",
-      });
+     showToast({
+  type: 'error',
+  title: 'Error!',
+  message: 'An error occurred. Check the console for details.'
+});
     } finally {
       setIsUpdating(false);
     }
@@ -390,8 +379,11 @@ export default function Page({}: Props) {
     const authData = getAuthData();
     const token = authData?.token;
     if (!token) {
-      alert("You are not logged in.");
-      return;
+showToast({
+  type: 'error',
+  title: 'Authentication Error',
+  message: 'You are not logged in.'
+});      return;
     }
 
     // Validate all items have required fields
@@ -400,13 +392,11 @@ export default function Page({}: Props) {
     );
     
     if (invalidItems.length > 0) {
-      Swal.fire({
-        title: "Validation Error",
-        text: "Please fill in all required fields (Name, Price, and Image) for all items.",
-        icon: "warning",
-        background: "#1C1E2D",
-        color: "#FFFFFF",
-      });
+    showToast({
+  type: 'warning',
+  title: 'Validation Error',
+  message: 'Please fill in all required fields (Name, Price, and Image) for all items.'
+});
       return;
     }
 
@@ -468,13 +458,11 @@ export default function Page({}: Props) {
       }
 
       if (successCount > 0) {
-        Swal.fire({
-            title: "Success!",
-            text: `${successCount} gift card(s) created successfully!`,
-            icon: "success",
-            background: "#1C1E2D",
-            color: "#FFFFFF",
-        });
+       showToast({
+  type: 'success',
+  title: 'Success!',
+  message: `${successCount} gift card(s) created successfully!`
+});
         setNewGiftCardItems([
           {
             name: "",
@@ -494,23 +482,19 @@ export default function Page({}: Props) {
       }
 
       if (errorMessages.length > 0) {
-        Swal.fire({
-          icon: "error",
-          title: "Validation Errors",
-          text: "Failed to create some gift cards:\n" + errorMessages.join("\n\n"),
-          background: "#1C1E2D",
-          color: "#FFFFFF",
-        });
+       showToast({
+  type: 'error',
+  title: 'Validation Errors',
+  message: "Failed to create some gift cards:\n" + errorMessages.join("\n\n")
+});
       }
     } catch (error) {
       console.error("Error creating gift card:", error);
-      Swal.fire({
-        title: "Error!",
-        text: "An error occurred. Check the console for details.",
-        icon: "error",
-        background: "#1C1E2D",
-        color: "#FFFFFF",
-    });
+showToast({
+  type: 'error',
+  title: 'Error!',
+  message: 'An error occurred. Check the console for details.'
+});
     } finally {
       setIsSubmitting(false);
     }
