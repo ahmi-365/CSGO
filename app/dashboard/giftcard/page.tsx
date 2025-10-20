@@ -3,10 +3,10 @@
 import WeaponsCollection from "@/app/components/dashboard/WeaponsCollection";
 import Input from "@/app/components/ui/Input";
 import React, { useState, useEffect } from "react";
-import { Plus } from "lucide-react";
+import { Edit, Plus } from "lucide-react";
 import Swal from "sweetalert2";
 import Link from "next/link";
-import { useToast } from '@/app/contexts/ToastContext';
+import { useToast } from "@/app/contexts/ToastContext";
 type Props = {};
 
 // --- Interfaces ---
@@ -17,11 +17,8 @@ interface ApiGiftCard {
   image: string;
   price: string;
   first_sale_date: string;
-  market_hash_name: string;
   rental: number;
   model_player: string;
-  loot_name: string;
-  loot_footer: string;
   loot_image: string;
 }
 
@@ -41,11 +38,8 @@ interface NewGiftCardItem {
   description: string;
   image: string;
   first_sale_date: string;
-  market_hash_name: string;
   rental: string;
   model_player: string;
-  loot_name: string;
-  loot_footer: string;
   loot_image: string;
 }
 
@@ -68,18 +62,15 @@ export default function Page({}: Props) {
       description: "",
       image: "",
       first_sale_date: "",
-      market_hash_name: "",
       rental: "false",
       model_player: "default",
-      loot_name: "",
-      loot_footer: "",
-      loot_image: "",
+      loot_image: "", // Keep only loot_image
     },
   ]);
   const [search, setSearch] = useState("");
   const [editingCard, setEditingCard] = useState<CardData | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
-const { showToast } = useToast();
+  const { showToast } = useToast();
   // Filter gift cards based on search
   const filteredGiftCards = giftCards.filter((giftCard) =>
     giftCard.title.toLowerCase().includes(search.toLowerCase())
@@ -152,11 +143,11 @@ const { showToast } = useToast();
       const authData = getAuthData();
       const token = authData?.token;
       if (!token) {
-       showToast({
-  type: 'error',
-  title: 'Error!',
-  message: 'Authentication error. Please log in again.'
-});
+        showToast({
+          type: "error",
+          title: "Error!",
+          message: "Authentication error. Please log in again.",
+        });
         return;
       }
       try {
@@ -172,24 +163,26 @@ const { showToast } = useToast();
         );
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.message || "Failed to delete the gift card.");
+          throw new Error(
+            errorData.message || "Failed to delete the gift card."
+          );
         }
         const deleteResult = await response.json();
-       showToast({
-  type: 'success',
-  title: 'Deleted!',
-  message: deleteResult.message || 'The gift card has been deleted.'
-});
+        showToast({
+          type: "success",
+          title: "Deleted!",
+          message: deleteResult.message || "The gift card has been deleted.",
+        });
         setGiftCards((prevGiftCards) =>
           prevGiftCards.filter((giftCard) => giftCard.id !== giftCardId)
         );
       } catch (err: any) {
         console.error("Deletion failed:", err);
-      showToast({
-  type: 'error',
-  title: 'Error!',
-  message: `Failed to delete: ${err.message}`
-});
+        showToast({
+          type: "error",
+          title: "Error!",
+          message: `Failed to delete: ${err.message}`,
+        });
       }
     }
   };
@@ -214,11 +207,8 @@ const { showToast } = useToast();
         description: "",
         image: "",
         first_sale_date: "",
-        market_hash_name: "",
         rental: "false",
         model_player: "default",
-        loot_name: "",
-        loot_footer: "",
         loot_image: "",
       },
     ]);
@@ -239,8 +229,10 @@ const { showToast } = useToast();
       if (!response.ok) throw new Error("Failed to fetch data.");
 
       const result = await response.json();
-      const giftCard = result.data.data.find((gc: ApiGiftCard) => gc.id === cardId);
-      
+      const giftCard = result.data.data.find(
+        (gc: ApiGiftCard) => gc.id === cardId
+      );
+
       if (giftCard) {
         setEditingCard({
           id: giftCard.id,
@@ -251,20 +243,19 @@ const { showToast } = useToast();
           color: "",
           color2: "",
         });
-        
-        setNewGiftCardItems([{
-          name: giftCard.name,
-          price: giftCard.price,
-          description: giftCard.description || "",
-          image: giftCard.image,
-          first_sale_date: giftCard.first_sale_date || "",
-          market_hash_name: giftCard.market_hash_name || "",
-          rental: giftCard.rental ? "true" : "false",
-          model_player: giftCard.model_player || "default",
-          loot_name: giftCard.loot_name || "",
-          loot_footer: giftCard.loot_footer || "",
-          loot_image: giftCard.loot_image || "",
-        }]);
+
+        setNewGiftCardItems([
+          {
+            name: giftCard.name,
+            price: giftCard.price,
+            description: giftCard.description || "",
+            image: giftCard.image,
+            first_sale_date: giftCard.first_sale_date || "",
+            rental: giftCard.rental ? "true" : "false",
+            model_player: giftCard.model_player || "default",
+            loot_image: giftCard.loot_image || "",
+          },
+        ]);
       }
     } catch (err: any) {
       console.error("Error fetching gift card details:", err);
@@ -273,25 +264,26 @@ const { showToast } = useToast();
 
   const handleUpdate = async () => {
     if (!editingCard) return;
-    
+
     const authData = getAuthData();
     const token = authData?.token;
     if (!token) {
-showToast({
-  type: 'error',
-  title: 'Authentication Error',
-  message: 'You are not logged in.'
-});      return;
+      showToast({
+        type: "error",
+        title: "Authentication Error",
+        message: "You are not logged in.",
+      });
+      return;
     }
 
     const item = newGiftCardItems[0];
-    
+
     if (!item.name || !item.price || !item.image) {
-    showToast({
-  type: 'warning',
-  title: 'Validation Error',
-  message: 'Please fill in all required fields (Name, Price, and Image).'
-});
+      showToast({
+        type: "warning",
+        title: "Validation Error",
+        message: "Please fill in all required fields (Name, Price, and Image).",
+      });
       return;
     }
 
@@ -304,12 +296,10 @@ showToast({
       description: item.description,
       price: isNaN(numericPrice) ? 0 : numericPrice,
       image: item.image,
-      first_sale_date: item.first_sale_date || new Date().toISOString().split('T')[0],
-      market_hash_name: item.market_hash_name,
+      first_sale_date:
+        item.first_sale_date || new Date().toISOString().split("T")[0],
       rental: item.rental === "true",
       model_player: item.model_player || "default",
-      loot_name: item.loot_name,
-      loot_footer: item.loot_footer,
       loot_image: item.loot_image,
     };
 
@@ -328,25 +318,24 @@ showToast({
       );
 
       if (response.ok) {
-       showToast({
-  type: 'success',
-  title: 'Success!',
-  message: 'Gift card updated successfully!'
-});
+        showToast({
+          type: "success",
+          title: "Success!",
+          message: "Gift card updated successfully!",
+        });
         setEditingCard(null);
-        setNewGiftCardItems([{
-          name: "",
-          price: "",
-          description: "",
-          image: "",
-          first_sale_date: "",
-          market_hash_name: "",
-          rental: "false",
-          model_player: "default",
-          loot_name: "",
-          loot_footer: "",
-          loot_image: "",
-        }]);
+        setNewGiftCardItems([
+          {
+            name: "",
+            price: "",
+            description: "",
+            image: "",
+            first_sale_date: "",
+            rental: "false",
+            model_player: "default",
+            loot_image: "",
+          },
+        ]);
         fetchGiftCards();
       } else {
         const errorData = await response.json();
@@ -357,19 +346,19 @@ showToast({
         } else if (errorData.message) {
           errorMessage = errorData.message;
         }
-       showToast({
-  type: 'error',
-  title: 'Update Failed',
-  message: errorMessage
-});
+        showToast({
+          type: "error",
+          title: "Update Failed",
+          message: errorMessage,
+        });
       }
     } catch (error) {
       console.error("Error updating gift card:", error);
-     showToast({
-  type: 'error',
-  title: 'Error!',
-  message: 'An error occurred. Check the console for details.'
-});
+      showToast({
+        type: "error",
+        title: "Error!",
+        message: "An error occurred. Check the console for details.",
+      });
     } finally {
       setIsUpdating(false);
     }
@@ -379,24 +368,26 @@ showToast({
     const authData = getAuthData();
     const token = authData?.token;
     if (!token) {
-showToast({
-  type: 'error',
-  title: 'Authentication Error',
-  message: 'You are not logged in.'
-});      return;
+      showToast({
+        type: "error",
+        title: "Authentication Error",
+        message: "You are not logged in.",
+      });
+      return;
     }
 
     // Validate all items have required fields
     const invalidItems = newGiftCardItems.filter(
-      item => !item.name || !item.price || !item.image
+      (item) => !item.name || !item.price || !item.image
     );
-    
+
     if (invalidItems.length > 0) {
-    showToast({
-  type: 'warning',
-  title: 'Validation Error',
-  message: 'Please fill in all required fields (Name, Price, and Image) for all items.'
-});
+      showToast({
+        type: "warning",
+        title: "Validation Error",
+        message:
+          "Please fill in all required fields (Name, Price, and Image) for all items.",
+      });
       return;
     }
 
@@ -414,12 +405,10 @@ showToast({
         description: item.description,
         price: isNaN(numericPrice) ? 0 : numericPrice,
         image: item.image,
-        first_sale_date: item.first_sale_date || new Date().toISOString().split('T')[0],
-        market_hash_name: item.market_hash_name,
+        first_sale_date:
+          item.first_sale_date || new Date().toISOString().split("T")[0],
         rental: item.rental === "true",
         model_player: item.model_player || "default",
-        loot_name: item.loot_name,
-        loot_footer: item.loot_footer,
         loot_image: item.loot_image,
       };
 
@@ -447,22 +436,24 @@ showToast({
         if (response && response.ok) {
           successCount++;
         } else if (response) {
-            const errorData = await response.json();
-            if (response.status === 422 && errorData.errors) {
-              const fieldErrors = Object.values(errorData.errors).flat().join("\n");
-              errorMessages.push(fieldErrors);
-            } else if (errorData.message) {
-              errorMessages.push(errorData.message);
-            }
+          const errorData = await response.json();
+          if (response.status === 422 && errorData.errors) {
+            const fieldErrors = Object.values(errorData.errors)
+              .flat()
+              .join("\n");
+            errorMessages.push(fieldErrors);
+          } else if (errorData.message) {
+            errorMessages.push(errorData.message);
+          }
         }
       }
 
       if (successCount > 0) {
-       showToast({
-  type: 'success',
-  title: 'Success!',
-  message: `${successCount} gift card(s) created successfully!`
-});
+        showToast({
+          type: "success",
+          title: "Success!",
+          message: `${successCount} gift card(s) created successfully!`,
+        });
         setNewGiftCardItems([
           {
             name: "",
@@ -470,11 +461,8 @@ showToast({
             description: "",
             image: "",
             first_sale_date: "",
-            market_hash_name: "",
             rental: "false",
             model_player: "default",
-            loot_name: "",
-            loot_footer: "",
             loot_image: "",
           },
         ]);
@@ -482,19 +470,20 @@ showToast({
       }
 
       if (errorMessages.length > 0) {
-       showToast({
-  type: 'error',
-  title: 'Validation Errors',
-  message: "Failed to create some gift cards:\n" + errorMessages.join("\n\n")
-});
+        showToast({
+          type: "error",
+          title: "Validation Errors",
+          message:
+            "Failed to create some gift cards:\n" + errorMessages.join("\n\n"),
+        });
       }
     } catch (error) {
       console.error("Error creating gift card:", error);
-showToast({
-  type: 'error',
-  title: 'Error!',
-  message: 'An error occurred. Check the console for details.'
-});
+      showToast({
+        type: "error",
+        title: "Error!",
+        message: "An error occurred. Check the console for details.",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -528,12 +517,34 @@ showToast({
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3 gap-2 md:gap-4">
             {filteredGiftCards.length > 0 ? (
               filteredGiftCards.map((item) => (
-                <div key={item.id} onClick={() => handleCardClick(item.id)} className="cursor-pointer">
-<WeaponsCollection item={item} onDelete={handleDeleteGiftCard} hideEditButton={true} />                </div>
+         <div 
+  key={item.id} 
+  className="cursor-pointer relative group hover:scale-[1.02] transition-transform duration-200"
+  onClick={() => handleCardClick(item.id)}
+>
+  <WeaponsCollection item={item} onDelete={handleDeleteGiftCard} hideEditButton={true} />
+  
+  {/* Edit Button with better styling */}
+  <button
+    onClick={(e) => {
+      e.stopPropagation();
+      handleCardClick(item.id);
+    }}
+    className="absolute top-14 right-3 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:shadow-xl z-10"
+    title="Edit this gift card"
+  >
+    <Edit size={16} color="white" strokeWidth={2} />
+  </button>
+  
+  {/* Optional: Visual indicator on hover */}
+  <div className="absolute inset-0 border-2 border-blue-500/0 group-hover:border-blue-500/50 rounded-lg transition-all pointer-events-none"></div>
+</div>
               ))
             ) : (
               <div className="col-span-full text-center py-8">
-                <p className="text-white/60">No gift cards found matching "{search}"</p>
+                <p className="text-white/60">
+                  No gift cards found matching "{search}"
+                </p>
               </div>
             )}
           </div>
@@ -550,19 +561,18 @@ showToast({
               <button
                 onClick={() => {
                   setEditingCard(null);
-                  setNewGiftCardItems([{
-                    name: "",
-                    price: "",
-                    description: "",
-                    image: "",
-                    first_sale_date: "",
-                    market_hash_name: "",
-                    rental: "false",
-                    model_player: "default",
-                    loot_name: "",
-                    loot_footer: "",
-                    loot_image: "",
-                  }]);
+                  setNewGiftCardItems([
+                    {
+                      name: "",
+                      price: "",
+                      description: "",
+                      image: "",
+                      first_sale_date: "",
+                      rental: "false",
+                      model_player: "default",
+                      loot_image: "",
+                    },
+                  ]);
                 }}
                 className="text-sm text-[#6F7083] hover:text-white transition-colors"
               >
@@ -576,7 +586,9 @@ showToast({
                 {index > 0 && (
                   <div className="flex items-center gap-3 my-6">
                     <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
-                    <span className="text-white/40 text-sm font-medium">Item {index + 1}</span>
+                    <span className="text-white/40 text-sm font-medium">
+                      Item {index + 1}
+                    </span>
                     <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
                   </div>
                 )}
@@ -597,7 +609,11 @@ showToast({
                       <Input
                         value={item.name}
                         onChange={(e) =>
-                          handleGiftCardItemChange(index, "name", e.target.value)
+                          handleGiftCardItemChange(
+                            index,
+                            "name",
+                            e.target.value
+                          )
                         }
                         inputClass="!text-white placeholder:!text-white/80 !px-4 min-h-12 border border-solid border-transparent focus:border-[#C8D0FF]"
                         type="text"
@@ -610,7 +626,11 @@ showToast({
                       <Input
                         value={item.price}
                         onChange={(e) =>
-                          handleGiftCardItemChange(index, "price", e.target.value)
+                          handleGiftCardItemChange(
+                            index,
+                            "price",
+                            e.target.value
+                          )
                         }
                         inputClass="!text-white placeholder:!text-white/80 !px-4 min-h-12 border border-solid border-transparent focus:border-[#C8D0FF]"
                         type="text"
@@ -636,73 +656,36 @@ showToast({
                         placeholder="Get $50 worth of Amazon credits instantly."
                       />
                     </div>
-                    <div className="col-span-6">
-                      <Input
-                        value={item.market_hash_name}
-                        onChange={(e) =>
-                          handleGiftCardItemChange(
-                            index,
-                            "market_hash_name",
-                            e.target.value
-                          )
-                        }
-                        inputClass="!text-white placeholder:!text-white/80 !px-4 min-h-12 border border-solid border-transparent focus:border-[#C8D0FF]"
-                        type="text"
-                        labelClass="!mb-2 !text-[#BFC0D8]"
-                        label="Market Hash Name"
-                        placeholder="amazon_gift_50"
-                      />
-                    </div>
-                    <div className="col-span-6">
-                      <Input
-                        value={item.first_sale_date}
-                        onChange={(e) =>
-                          handleGiftCardItemChange(
-                            index,
-                            "first_sale_date",
-                            e.target.value
-                          )
-                        }
-                        inputClass="!text-white placeholder:!text-white/80 !px-4 min-h-12 border border-solid border-transparent focus:border-[#C8D0FF]"
-                        type="date"
-                        labelClass="!mb-2 !text-[#BFC0D8]"
-                        label="First Sale Date"
-                      />
-                    </div>
-                    <div className="col-span-12">
-                      <Input
-                        value={item.loot_name}
-                        onChange={(e) =>
-                          handleGiftCardItemChange(
-                            index,
-                            "loot_name",
-                            e.target.value
-                          )
-                        }
-                        inputClass="!text-white placeholder:!text-white/80 !px-4 min-h-12 border border-solid border-transparent focus:border-[#C8D0FF]"
-                        type="text"
-                        labelClass="!mb-2 !text-[#BFC0D8]"
-                        label="Loot Name"
-                        placeholder="Amazon Wallet"
-                      />
-                    </div>
-                    <div className="col-span-12">
-                      <Input
-                        value={item.loot_footer}
-                        onChange={(e) =>
-                          handleGiftCardItemChange(
-                            index,
-                            "loot_footer",
-                            e.target.value
-                          )
-                        }
-                        inputClass="!text-white placeholder:!text-white/80 !px-4 min-h-12 border border-solid border-transparent focus:border-[#C8D0FF]"
-                        type="text"
-                        labelClass="!mb-2 !text-[#BFC0D8]"
-                        label="Loot Footer"
-                        placeholder="Redeem your code at Amazon.com"
-                      />
-                    </div>
+                 
+        <div className="col-span-6">
+  <label className="block text-sm font-medium text-[#BFC0D8] mb-2">
+    First Sale Date
+  </label>
+  <input
+    type="date"
+    value={item.first_sale_date}
+    onChange={(e) =>
+      handleGiftCardItemChange(
+        index,
+        "first_sale_date",
+        e.target.value
+      )
+    }
+    className="w-full !text-white placeholder:!text-white/80 !px-4 min-h-12 border border-solid border-transparent focus:border-[#C8D0FF] bg-white/10 rounded-lg"
+    max="2099-12-31"
+    title="Select the first sale date for this gift card"
+  />
+  {item.first_sale_date && (
+    <p className="text-xs text-gray-400 mt-1">
+      Selected: {new Date(item.first_sale_date).toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      })}
+    </p>
+  )}
+</div>
+                   
                     <div className="col-span-12">
                       <Input
                         value={item.loot_image}
@@ -740,10 +723,13 @@ showToast({
               disabled={editingCard ? isUpdating : isSubmitting}
               className="w-full gradient-border-two rounded-xl p-px overflow-hidden shadow-[0_4px_8px_0_rgba(59,188,254,0.32)] text-sm md:text-base min-h-11 md:min-h-13 flex items-center justify-center text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {editingCard 
-                ? (isUpdating ? "Updating..." : "Update Now")
-                : (isSubmitting ? "Publishing..." : "Publish Now")
-              }
+              {editingCard
+                ? isUpdating
+                  ? "Updating..."
+                  : "Update Now"
+                : isSubmitting
+                ? "Publishing..."
+                : "Publish Now"}
             </button>
           </div>
         </div>

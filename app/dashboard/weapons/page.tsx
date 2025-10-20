@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, X, GripVertical, Trash2 } from "lucide-react";
+import { Plus, X, GripVertical, Trash2, Edit } from "lucide-react";
 import Link from "next/link";
 import  Input from "@/app/components/ui/Input";
 import { useToast } from '@/app/contexts/ToastContext';
@@ -65,7 +65,7 @@ export default function Page() {
   const { showToast } = useToast();
   const [search, setSearch] = useState("");
   const [rarities, setRarities] = useState<any[]>([]);
-  
+  const [hoveredWeaponId, setHoveredWeaponId] = useState<string | null>(null);
   // Case creation states
   const [showDropZone, setShowDropZone] = useState(false);
   const [createdCaseId, setCreatedCaseId] = useState<string | null>(null);
@@ -123,7 +123,49 @@ export default function Page() {
       setIsLoading(false);
     }
   };
+const handleDeleteWeapon = async (weaponId: string) => {
+  const authData = getAuthData();
+  const token = authData?.token;
+  
+  if (!token) {
+    showToast({
+      type: 'error',
+      title: 'Error!',
+      message: 'You are not logged in.'
+    });
+    return;
+  }
 
+  if (!confirm('Are you sure you want to delete this weapon?')) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${baseUrl}/api/admin/weapons/${weaponId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (response.ok) {
+      showToast({
+        type: 'success',
+        title: 'Success!',
+        message: 'Weapon deleted successfully!'
+      });
+      fetchWeapons(); // Refresh the list
+    } else {
+      throw new Error('Failed to delete weapon');
+    }
+  } catch (error) {
+    showToast({
+      type: 'error',
+      title: 'Error!',
+      message: 'Failed to delete weapon.'
+    });
+  }
+};
   const fetchRarities = async () => {
     try {
       const authData = getAuthData();
@@ -478,7 +520,7 @@ export default function Page() {
       <div className="bg-white/6 rounded-2xl md:rounded-[20px] p-4 md:p-5 lg:p-6">
         <div className="flex items-center justify-between mb-3 md:mb-4 xl:mb-5">
           <h3 className="text-white text-base md:text-lg font-bold !leading-[130%]">
-            Weapons Database
+            Weapons 
           </h3>
           <span className="text-sm text-[#6F7083]">
             {filteredWeapons.length} Weapons
@@ -502,24 +544,52 @@ export default function Page() {
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3 gap-2 md:gap-4">
             {filteredWeapons.length > 0 ? (
               filteredWeapons.map((item) => (
-                <div
-                  key={item.id}
-                  draggable={showDropZone}
-                  onDragStart={() => handleDragStart(item)}
-                  onDragEnd={handleDragEnd}
-                  className={`relative rounded-xl overflow-hidden ${
-                    showDropZone ? "cursor-move" : ""
-                  }`}
-                  style={{
-                    background: `linear-gradient(180deg, ${item.color} 0%, ${item.color2} 100%)`,
-                  }}
-                >
-                  {showDropZone && (
-                    <div className="absolute top-2 right-2 z-10">
-                      <GripVertical size={16} className="text-white/60" />
-                    </div>
-                  )}
-                  <Link href={`/dashboard/weapons/${item.id}`}>
+               <div
+  key={item.id}
+  draggable={showDropZone}
+  onDragStart={() => handleDragStart(item)}
+  onDragEnd={handleDragEnd}
+  onMouseEnter={() => setHoveredWeaponId(item.id)}
+  onMouseLeave={() => setHoveredWeaponId(null)}
+  className={`relative rounded-xl overflow-hidden ${
+    showDropZone ? "cursor-move" : ""
+  }`}
+  style={{
+    background: `linear-gradient(180deg, ${item.color} 0%, ${item.color2} 100%)`,
+  }}
+>
+  {/* Hover Overlay with Buttons */}
+  {hoveredWeaponId === item.id && !showDropZone && (
+   <div className="absolute top-2 right-2 z-20 flex items-center gap-2">
+  <Link href={`/dashboard/weapons/${item.id}`}>
+    <button
+      className="p-2 bg-blue-500 hover:bg-blue-600 rounded-lg text-white transition-colors"
+    >
+      <Edit size={18} />
+    </button>
+  </Link>
+
+  <button
+    onClick={(e) => {
+      e.preventDefault();
+      handleDeleteWeapon(item.id);
+    }}
+    className="p-2 bg-red-500 hover:bg-red-600 rounded-lg text-white transition-colors"
+  >
+    <Trash2 size={18} />
+  </button>
+</div>
+
+  )}
+
+  {/* Existing drag handle */}
+  {showDropZone && (
+    <div className="absolute top-2 right-2 z-10">
+      <GripVertical size={16} className="text-white/60" />
+    </div>
+  )}
+
+  <Link href={`/dashboard/weapons/${item.id}`}>
                     <div className="p-3">
                       <div className="flex justify-center mb-2">
                         <img
@@ -541,7 +611,7 @@ export default function Page() {
                       </div>
                     </div>
                   </Link>
-                </div>
+</div>
               ))
             ) : (
               <div className="col-span-full text-center py-8">
