@@ -52,29 +52,19 @@ interface SpinIconItem {
   textColor: string | null;
 }
 
-// Inventory Item Interface
-interface InventoryItem {
-  id: number;
-  user_id: number;
-  base_weapon_id: string | null;
-  acquired_at: string;
-  is_sold: boolean;
-  price: string | null;
-  base_weapon: {
+// Replace InventoryItem interface with:
+interface AssignedWeapon {
+  id: string;
+  name: string;
+  crates_assigned: number;
+  assigned_case_id: string;
+  random_case: {
     id: string;
     name: string;
-    description: string;
-    image: string;
-    rarity: string | null;
-    price: string;
-    probability: number | null;
-  } | null;
-  crate_open: {
-    id: number;
-    crate_id: string;
-    price_paid: string;
-    created_at: string;
-  } | null;
+    rarity: string;
+  };
+  price: string;
+  image: string;
 }
 
 const randomColors = [
@@ -114,9 +104,8 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
   const { showToast } = useToast();
   const [currentPosition, setCurrentPosition] = useState(0);
   const [spinnerItems, setSpinnerItems] = useState<StremItem[]>([]);
-  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
-  const [inventoryLoading, setInventoryLoading] = useState(true);
-
+const [assignedWeapons, setAssignedWeapons] = useState<AssignedWeapon[]>([]);
+const [weaponsLoading, setWeaponsLoading] = useState(true);
   const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "YOUR_BASE_URL_HERE";
 
   // Resolve the params promise
@@ -128,47 +117,36 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
     resolveParams();
   }, [params]);
 
-  // Fetch inventory items
-  useEffect(() => {
-    const fetchInventory = async () => {
-      try {
-        setInventoryLoading(true);
-        const authData = getAuthData();
-        const token = authData?.token;
+useEffect(() => {
+  const fetchAssignedWeapons = async () => {
+    try {
+      setWeaponsLoading(true);
+      
+      // No token needed for this endpoint
+      const response = await fetch(`${BASE_URL}/api/weapons/assigned`, {
+        headers: {
+          Accept: "application/json",
+        },
+      });
 
-        if (!token) {
-          throw new Error("You must be logged in to view inventory");
-        }
+      if (!response.ok) throw new Error("Failed to fetch assigned weapons");
+      const data = await response.json();
 
-        const response = await fetch(`${BASE_URL}/api/inventory`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/json",
-          },
-        });
-
-        if (!response.ok) throw new Error("Failed to fetch inventory");
-        const data = await response.json();
-
-        if (data.status && data.data) {
-          // Filter out items that are sold or don't have base_weapon data
-          const validItems = data.data.filter(
-            (item: InventoryItem) => !item.is_sold && item.base_weapon !== null
-          );
-          setInventoryItems(validItems);
-        }
-      } catch (err) {
-        console.error("Error fetching inventory:", err);
-        setError(
-          err instanceof Error ? err.message : "Failed to load inventory"
-        );
-      } finally {
-        setInventoryLoading(false);
+      if (data.success && data.data) {
+        setAssignedWeapons(data.data);
       }
-    };
+    } catch (err) {
+      console.error("Error fetching assigned weapons:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to load weapons"
+      );
+    } finally {
+      setWeaponsLoading(false);
+    }
+  };
 
-    fetchInventory();
-  }, [BASE_URL]);
+  fetchAssignedWeapons();
+}, [BASE_URL]);
   // Fetch crate data for the spinner
   useEffect(() => {
     if (!crateId) return;
@@ -917,42 +895,36 @@ const handleVerify = async (verifyUrl: string) => {
       </div>
 
       {/* Inventory Section */}
-      <div className="flex flex-col gap-y-5 mt-6">
-        <h4 className="text-2xl">Your Inventory</h4>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4 pb-8 pd:10">
-          {inventoryLoading ? (
-            <div className="col-span-full text-center py-20 text-white">
-              Loading inventory...
-            </div>
-          ) : inventoryItems.length > 0 ? (
-            inventoryItems.map((item) => {
-              const weapon = item.base_weapon;
-              if (!weapon) return null;
-
-              return (
-                <BuyCard
-                  item={{
-                    id: item.id.toString(),
-                    img: weapon.image,
-                    price: `$${parseFloat(weapon.price).toFixed(2)}`,
-                    des: weapon.name,
-                    color: getRarityColor(weapon.rarity),
-                    btn: item.is_sold ? "Sold" : "Sell Now",
-                  }}
-                  key={item.id}
-                  path={`/inventory/${item.id}`}
-                />
-              );
-            })
-          ) : (
-            <div className="col-span-full text-center py-20 text-white/60">
-              {inventoryItems.length === 0
-                ? "Your inventory is empty. Start opening cases to collect items!"
-                : "No items match your search criteria"}
-            </div>
-          )}
-        </div>
+   {/* Assigned Weapons Section */}
+<div className="flex flex-col gap-y-5 mt-6">
+  <h4 className="text-2xl">Available Weapons</h4>
+  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4 pb-8 pd:10">
+    {weaponsLoading ? (
+      <div className="col-span-full text-center py-20 text-white">
+        Loading weapons...
       </div>
+    ) : assignedWeapons.length > 0 ? (
+      assignedWeapons.map((weapon) => (
+        <BuyCard
+          item={{
+            id: weapon.id,
+            img: weapon.image,
+            price: `$${parseFloat(weapon.price).toFixed(2)}`,
+            des: weapon.name,
+            color: getRarityColor(weapon.random_case.rarity),
+            btn: "Open Case",
+          }}
+          key={weapon.id}
+          path={`/case/${weapon.assigned_case_id}`}
+        />
+      ))
+    ) : (
+      <div className="col-span-full text-center py-20 text-white/60">
+        No weapons available at the moment
+      </div>
+    )}
+  </div>
+</div>
     </PageContainer>
   );
 }
